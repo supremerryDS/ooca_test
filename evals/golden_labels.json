@@ -1,0 +1,26 @@
+[
+  {
+    "ticket_id": "T-1001",
+    "notes": "Triple authorization + no Pro access + 2h deadline + explicit chargeback threat. Refunds need human authority.",
+    "acceptable_urgency": ["high", "critical"],
+    "acceptable_actions": ["escalate_to_human"],
+    "acceptable_teams": ["billing"],
+    "expected_tools": ["get_customer_history", "get_billing_transactions", "search_knowledge_base"]
+  },
+  {
+    "ticket_id": "T-1002",
+    "notes": "Enterprise, 45 seats, whole team down, Thai language, internal monitoring shows an unpublished Asia incident.",
+    "acceptable_urgency": ["critical"],
+    "acceptable_actions": ["escalate_to_human"],
+    "acceptable_teams": ["incident_response"],
+    "expected_tools": ["get_customer_history", "check_service_status", "search_knowledge_base"]
+  },
+  {
+    "ticket_id": "T-1003",
+    "notes": "Friendly how-to + known bug with documented fix + feature request. KB fully answers it.",
+    "acceptable_urgency": ["low"],
+    "acceptable_actions": ["auto_respond"],
+    "acceptable_teams": null,
+    "expected_tools": ["get_customer_history", "search_knowledge_base"]
+  }
+]
