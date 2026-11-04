@@ -1,0 +1,201 @@
+"""Deterministic guardrails applied *after* the LLM decides.
+
+The LLM is good at reading messy conversations; it is not a reliable place to
+enforce business rules. So the LLM extracts signals (urgency, risk flags,
+confidence, cited articles) and this module enforces the non-negotiable rules
+in plain code. Every change is recorded as a `PolicyOverride`, which makes the
+system auditable and gives us a metric ("how often do guardrails fire?").
+
+Adding a rule = subclass `PolicyRule` and add it to `default_rules`.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, ClassVar
+
+from triage_agent.schemas import (
+    Action,
+    PolicyOverride,
+    RiskFlag,
+    Team,
+    ToolCallRecord,
+    TriageDecision,
+    Urgency,
+)
+from triage_agent.tools.knowledge_base import SearchKnowledgeBaseTool
+
+
+@dataclass(frozen=True)
+class PolicyContext:
+    """Facts about the run that rules may need (beyond the decision itself)."""
+
+    retrieved_kb_ids: frozenset[str] = field(default_factory=frozenset)
+
+    @classmethod
+    def from_tool_calls(cls, tool_calls: Iterable[ToolCallRecord]) -> PolicyContext:
+        ids = {
+            result["id"]
+            for record in tool_calls
+            if record.ok and record.tool_name == SearchKnowledgeBaseTool.name
+            for result in record.output.get("results", [])
+        }
+        return cls(retrieved_kb_ids=frozenset(ids))
+
+
+@dataclass(frozen=True)
+class RuleOutcome:
+    reason: str
+    updates: dict[str, Any]
+
+
+class PolicyRule(ABC):
+    name: ClassVar[str]
+
+    @abstractmethod
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        """Return the field updates to apply, or None if the rule does not fire."""
+
+
+# --------------------------------------------------------------------------- #
+# Rules                                                                        #
+# --------------------------------------------------------------------------- #
+class SafetyConcernRule(PolicyRule):
+    """A user in distress is never handled by automation (critical for a wellbeing platform)."""
+
+    name = "safety_concern_to_care_team"
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        if RiskFlag.SAFETY_CONCERN not in decision.extracted.risk_flags:
+            return None
+        return RuleOutcome(
+            reason="Customer wellbeing/safety concern: immediate human ownership by the care team.",
+            updates={"urgency": Urgency.CRITICAL, "action": Action.ESCALATE_TO_HUMAN, "route_to": Team.CARE_TEAM},
+        )
+
+
+class CriticalNeedsHumanRule(PolicyRule):
+    name = "critical_requires_human"
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        if decision.urgency is not Urgency.CRITICAL or decision.action is Action.ESCALATE_TO_HUMAN:
+            return None
+        return RuleOutcome(
+            reason="Critical tickets always get immediate human ownership.",
+            updates={"action": Action.ESCALATE_TO_HUMAN, "route_to": decision.route_to or Team.GENERAL_SUPPORT},
+        )
+
+
+class HighRiskNeedsHumanRule(PolicyRule):
+    """Chargebacks, legal threats and security/data issues need a human with authority."""
+
+    name = "high_risk_requires_human"
+    HIGH_RISK_FLAGS: ClassVar[frozenset[RiskFlag]] = frozenset(
+        {RiskFlag.CHARGEBACK_THREAT, RiskFlag.LEGAL_THREAT, RiskFlag.SECURITY_OR_DATA_LOSS}
+    )
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        flags = self.HIGH_RISK_FLAGS.intersection(decision.extracted.risk_flags)
+        if not flags:
+            return None
+        urgency = decision.urgency if decision.urgency.rank >= Urgency.HIGH.rank else Urgency.HIGH
+        return RuleOutcome(
+            reason=f"High-risk flags present ({', '.join(sorted(f.value for f in flags))}).",
+            updates={
+                "urgency": urgency,
+                "action": Action.ESCALATE_TO_HUMAN,
+                "route_to": decision.route_to or Team.GENERAL_SUPPORT,
+            },
+        )
+
+
+class DropUngroundedCitationsRule(PolicyRule):
+    """Remove KB article IDs the model cited but never actually retrieved (hallucinations)."""
+
+    name = "drop_ungrounded_citations"
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        grounded = [kb_id for kb_id in decision.kb_article_ids if kb_id in ctx.retrieved_kb_ids]
+        if grounded == decision.kb_article_ids:
+            return None
+        return RuleOutcome(
+            reason="Cited KB articles that were not returned by search_knowledge_base.",
+            updates={"kb_article_ids": grounded},
+        )
+
+
+class GroundedAutoResponseRule(PolicyRule):
+    """Only send an automatic reply if it is backed by at least one retrieved KB article."""
+
+    name = "auto_response_must_be_grounded"
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        if decision.action is not Action.AUTO_RESPOND or decision.kb_article_ids:
+            return None
+        return RuleOutcome(
+            reason="Auto-reply is not backed by any knowledge-base article; a human must review it.",
+            updates={"action": Action.ROUTE_TO_SPECIALIST, "route_to": Team.GENERAL_SUPPORT},
+        )
+
+
+class LowConfidenceReviewRule(PolicyRule):
+    name = "low_confidence_requires_review"
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        if decision.action is not Action.AUTO_RESPOND or decision.confidence >= self.threshold:
+            return None
+        return RuleOutcome(
+            reason=f"Confidence {decision.confidence:.2f} is below {self.threshold:.2f} for an automatic reply.",
+            updates={"action": Action.ROUTE_TO_SPECIALIST, "route_to": Team.GENERAL_SUPPORT},
+        )
+
+
+def default_rules(confidence_threshold: float) -> list[PolicyRule]:
+    # Order matters: safety first, then escalation rules, then auto-reply checks.
+    return [
+        SafetyConcernRule(),
+        CriticalNeedsHumanRule(),
+        HighRiskNeedsHumanRule(),
+        DropUngroundedCitationsRule(),
+        GroundedAutoResponseRule(),
+        LowConfidenceReviewRule(confidence_threshold),
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# Engine                                                                       #
+# --------------------------------------------------------------------------- #
+class PolicyEngine:
+    def __init__(self, rules: Sequence[PolicyRule]) -> None:
+        self._rules = list(rules)
+
+    def apply(self, decision: TriageDecision, ctx: PolicyContext) -> tuple[TriageDecision, list[PolicyOverride]]:
+        overrides: list[PolicyOverride] = []
+        for rule in self._rules:
+            outcome = rule.check(decision, ctx)
+            if outcome is None:
+                continue
+            changes = {
+                name: [_plain(getattr(decision, name)), _plain(value)]
+                for name, value in outcome.updates.items()
+                if getattr(decision, name) != value
+            }
+            if not changes:
+                continue
+            decision = decision.model_copy(update=outcome.updates)
+            overrides.append(PolicyOverride(rule=rule.name, reason=outcome.reason, changes=changes))
+        return decision, overrides
+
+
+def _plain(value: Any) -> Any:
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, list):
+        return [_plain(v) for v in value]
+    return value
