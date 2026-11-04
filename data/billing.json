@@ -1,0 +1,79 @@
+{
+  "cus_1001": {
+    "current_plan": "free",
+    "subscription_status": "not_active",
+    "payment_attempts": [
+      {
+        "payment_id": "pay_8f21",
+        "created_at": "2026-11-03T07:00:12+07:00",
+        "amount": 29.99,
+        "currency": "USD",
+        "card": "visa ending 4242",
+        "gateway_status": "authorized",
+        "shown_to_customer_as": "failed",
+        "provisioning": "failed: subscription webhook timed out"
+      },
+      {
+        "payment_id": "pay_9a07",
+        "created_at": "2026-11-03T07:58:40+07:00",
+        "amount": 29.99,
+        "currency": "USD",
+        "card": "mastercard ending 5100",
+        "gateway_status": "authorized",
+        "shown_to_customer_as": "failed",
+        "provisioning": "failed: subscription webhook timed out"
+      },
+      {
+        "payment_id": "pay_9c33",
+        "created_at": "2026-11-03T08:41:05+07:00",
+        "amount": 29.99,
+        "currency": "USD",
+        "card": "mastercard ending 5100",
+        "gateway_status": "authorized",
+        "shown_to_customer_as": "failed",
+        "provisioning": "failed: subscription webhook timed out"
+      }
+    ],
+    "refunds": [],
+    "total_held_usd": 89.97,
+    "open_disputes": 0
+  },
+  "cus_2002": {
+    "current_plan": "enterprise",
+    "subscription_status": "active",
+    "payment_attempts": [
+      {
+        "payment_id": "inv_2026_07",
+        "created_at": "2026-07-01T09:00:00+07:00",
+        "amount": 16200.0,
+        "currency": "USD",
+        "card": "bank transfer",
+        "gateway_status": "paid",
+        "shown_to_customer_as": "paid",
+        "provisioning": "ok"
+      }
+    ],
+    "refunds": [],
+    "total_held_usd": 0,
+    "open_disputes": 0
+  },
+  "cus_3003": {
+    "current_plan": "pro",
+    "subscription_status": "active",
+    "payment_attempts": [
+      {
+        "payment_id": "pay_7712",
+        "created_at": "2026-10-15T08:00:00+07:00",
+        "amount": 29.99,
+        "currency": "USD",
+        "card": "visa ending 1881",
+        "gateway_status": "captured",
+        "shown_to_customer_as": "paid",
+        "provisioning": "ok"
+      }
+    ],
+    "refunds": [],
+    "total_held_usd": 0,
+    "open_disputes": 0
+  }
+}

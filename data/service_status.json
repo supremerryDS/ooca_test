@@ -1,0 +1,37 @@
+{
+  "public_status_page": {
+    "url": "https://status.company.com",
+    "overall": "all_systems_operational",
+    "last_updated": "2026-11-03T07:30:00+07:00"
+  },
+  "regions": {
+    "us-east": {
+      "status": "operational",
+      "http_5xx_rate_pct": 0.08,
+      "p95_latency_ms": 210,
+      "active_incidents": []
+    },
+    "eu-west": {
+      "status": "operational",
+      "http_5xx_rate_pct": 0.11,
+      "p95_latency_ms": 230,
+      "active_incidents": []
+    },
+    "asia-southeast": {
+      "status": "degraded",
+      "http_5xx_rate_pct": 37.4,
+      "p95_latency_ms": 4100,
+      "degraded_since": "2026-11-03T07:52:00+07:00",
+      "active_incidents": [
+        {
+          "incident_id": "INC-2041",
+          "title": "Elevated HTTP 500 errors on API gateway (ap-southeast-1)",
+          "severity": "SEV-2",
+          "state": "investigating",
+          "published_on_status_page": false,
+          "opened_at": "2026-11-03T08:20:00+07:00"
+        }
+      ]
+    }
+  }
+}

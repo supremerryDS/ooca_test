@@ -1,0 +1,86 @@
+[
+  {
+    "id": "KB-BILL-001",
+    "title": "Payment failed when upgrading your plan",
+    "category": "billing",
+    "tags": ["payment failed", "upgrade", "card declined", "pro", "checkout"],
+    "content": "If checkout shows 'payment failed', first check whether your bank shows a pending charge. A pending charge means the payment was authorized but the upgrade did not finish. In that case do NOT retry with another card: each retry creates a new authorization. Contact support so the billing team can complete the upgrade or void the extra authorizations."
+  },
+  {
+    "id": "KB-BILL-002",
+    "title": "Duplicate or unexpected charges",
+    "category": "billing",
+    "tags": ["duplicate charge", "double charge", "multiple charges", "pending charge", "refund", "authorization"],
+    "content": "Pending charges are card authorizations. Uncaptured authorizations are released by the bank, usually within 3-7 business days, but the billing team can void them immediately. Captured duplicate charges are refunded by the billing team only. Support agents must not promise a refund amount or date before billing confirms it. If a customer mentions a chargeback or bank dispute, hand the case to a human billing specialist right away."
+  },
+  {
+    "id": "KB-BILL-003",
+    "title": "Plan not updated after payment",
+    "category": "billing",
+    "tags": ["plan not updated", "still free", "pro access", "provisioning", "upgrade not working"],
+    "content": "After a successful payment the new plan is usually active within 1 minute. If the plan has not changed after 10 minutes, provisioning has failed. The billing team can activate the plan manually and reconcile the payment. Customers should not retry the payment."
+  },
+  {
+    "id": "KB-BILL-004",
+    "title": "Refund policy",
+    "category": "billing",
+    "tags": ["refund", "money back", "cancel", "policy"],
+    "content": "Monthly Pro subscriptions can be refunded in full within 14 days of purchase. Duplicate or erroneous charges are always refunded in full. Refunds reach the original payment method in 5-10 business days depending on the bank."
+  },
+  {
+    "id": "KB-PRO-001",
+    "title": "What's included in the Pro plan",
+    "category": "plans",
+    "tags": ["pro", "features", "export", "pdf", "pptx", "presentation", "plan comparison"],
+    "content": "Pro adds unlimited projects, high-resolution PDF/PPTX export, custom branding and priority email support. Pro costs $29.99 per month. Export features are available as soon as the Pro plan is active on the account."
+  },
+  {
+    "id": "KB-TECH-001",
+    "title": "Troubleshooting HTTP 500 errors",
+    "category": "technical",
+    "tags": ["error 500", "500", "internal server error", "cannot access", "login", "down", "browser"],
+    "content": "A single user seeing HTTP 500 can try clearing the browser cache or using a private window. If several users, browsers or devices see the same error at the same time, the problem is almost certainly on our side, not the customer's. Collect the region, the time the errors started and an example request ID, then escalate to the on-call engineer."
+  },
+  {
+    "id": "KB-TECH-002",
+    "title": "Service status and incident communication",
+    "category": "technical",
+    "tags": ["status page", "outage", "incident", "region", "asia", "all systems operational"],
+    "content": "status.company.com is updated manually by the incident commander and can lag behind internal monitoring by up to 30 minutes. If internal monitoring shows an incident that is not yet public, link the ticket to the incident and tell the customer we are investigating. Do not share internal incident details, causes or ETAs that the incident team has not confirmed."
+  },
+  {
+    "id": "KB-ENT-001",
+    "title": "Enterprise support SLA and escalation",
+    "category": "enterprise",
+    "tags": ["enterprise", "sla", "p1", "critical", "account manager", "escalation"],
+    "content": "Enterprise P1 (service unavailable or major function broken for many users): first human response within 1 hour, 24/7, and the customer's account manager is notified. Enterprise P2: response within 4 business hours. Enterprise tickets must never be closed by an automated reply alone."
+  },
+  {
+    "id": "KB-APP-001",
+    "title": "Dark mode and appearance settings",
+    "category": "product",
+    "tags": ["dark mode", "theme", "appearance", "light", "system default", "settings", "night"],
+    "content": "Go to Settings > Appearance and choose Light, Dark or System Default. Dark mode is available on every plan. The explicit 'Dark' option needs desktop app version 4.2 or later; older versions show only 'Light' and 'System Default'. Scheduling a theme by time of day is not built in, but with 'System Default' selected the app follows the operating system, so macOS 'Auto' appearance switches the app to dark in the evening."
+  },
+  {
+    "id": "KB-APP-002",
+    "title": "Known issue: System Default theme ignores macOS appearance (desktop 4.1.x)",
+    "category": "product",
+    "tags": ["known issue", "bug", "system default", "macos", "dark mode not working", "theme", "4.1"],
+    "content": "In macOS desktop app versions 4.1.0-4.1.4, 'System Default' does not follow the macOS dark appearance and the app stays light. Fixed in version 4.2.0. Workaround: update the app via Help > Check for Updates, then restart it."
+  },
+  {
+    "id": "KB-PROD-001",
+    "title": "Feature requests",
+    "category": "product",
+    "tags": ["feature request", "suggestion", "roadmap", "idea", "would be cool"],
+    "content": "We log every feature request for the product team and tag it to the customer's account. We do not share roadmap dates. Thank the customer and let them know the request has been recorded."
+  },
+  {
+    "id": "KB-ACC-001",
+    "title": "Cannot log in or reset password",
+    "category": "account",
+    "tags": ["login", "password", "reset", "locked", "2fa", "sso"],
+    "content": "Use 'Forgot password' on the login page to get a reset link. Links expire after 30 minutes. SSO users must reset their password with their identity provider. After 5 failed attempts the account is locked for 15 minutes."
+  }
+]

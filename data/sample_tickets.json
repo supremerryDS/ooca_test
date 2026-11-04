@@ -1,0 +1,83 @@
+[
+  {
+    "ticket_id": "T-1001",
+    "customer_id": "cus_1001",
+    "channel": "in_app_chat",
+    "messages": [
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T07:00:00+07:00",
+        "text": "My payment failed when I tried to upgrade to Pro. Can you check what's wrong?"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T08:00:00+07:00",
+        "text": "I tried again with a different card. Now I see TWO pending charges but my account still shows Free plan??"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T09:00:00+07:00",
+        "text": "Okay this is getting ridiculous. Just checked my bank app - I have THREE charges of $29.99 now. None of them refunded. And I STILL don't have Pro access."
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T10:00:00+07:00",
+        "text": "HELLO?? Is anyone there??? I need this fixed NOW. I have a presentation in 2 hours and I need the Pro export features. If these charges aren't reversed by end of day I'm disputing all of them with my bank."
+      }
+    ]
+  },
+  {
+    "ticket_id": "T-1002",
+    "customer_id": "cus_2002",
+    "channel": "email",
+    "messages": [
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T08:00:00+07:00",
+        "text": "ระบบเข้าไม่ได้ครับ ขึ้น error 500"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T08:30:00+07:00",
+        "text": "ลองหลายเครื่องแล้ว ทั้ง Chrome, Safari, Firefox ผลเหมือนกันหมด เพื่อนร่วมงานก็เข้าไม่ได้เหมือนกัน"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T09:15:00+07:00",
+        "text": "ตอนนี้ลูกค้าโวยเข้ามาเยอะมาก เรามี demo กับลูกค้ารายใหญ่บ่ายนี้ ถ้าระบบไม่กลับมา deal นี้อาจจะหลุด"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T10:00:00+07:00",
+        "text": "เช็ค status.company.com แล้ว บอกว่า all systems operational แต่เราใช้งานไม่ได้จริงๆ ช่วยเช็คให้หน่อยได้ไหมครับ region Asia มีปัญหาหรือเปล่า?"
+      }
+    ]
+  },
+  {
+    "ticket_id": "T-1003",
+    "customer_id": "cus_3003",
+    "channel": "in_app_chat",
+    "messages": [
+      {
+        "author": "customer",
+        "sent_at": "2026-11-01T10:00:00+07:00",
+        "text": "Hey, just wondering if you support dark mode? No rush 😊"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-02T10:00:00+07:00",
+        "text": "Thanks for the reply! Oh nice, so it's in Settings > Appearance. Found it! But hmm I'm on Pro plan and I only see 'Light' and 'System Default' options. No dark mode toggle?"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-02T13:00:00+07:00",
+        "text": "Okay so I switched to 'System Default' and my Mac is set to dark mode, but your app still shows light theme. Is this a bug or am I missing something?"
+      },
+      {
+        "author": "customer",
+        "sent_at": "2026-11-03T10:00:00+07:00",
+        "text": "Also random question while I have you - is there a way to schedule dark mode? Like auto-switch at 6pm? Some apps have that. Would be cool if you guys added it 👀"
+      }
+    ]
+  }
+]

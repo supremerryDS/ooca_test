@@ -1,0 +1,74 @@
+{
+  "cus_1001": {
+    "customer_id": "cus_1001",
+    "name": "Jordan Lee",
+    "company": null,
+    "plan": "free",
+    "plan_note": "Upgrade to Pro attempted today; subscription not active",
+    "tenure_months": 4,
+    "region": "us-east",
+    "seats": 1,
+    "preferred_language": "en",
+    "activity": "weekly logins",
+    "devices": [
+      { "platform": "web", "app_version": "web" }
+    ],
+    "account_manager": null,
+    "support_history": {
+      "total_tickets": 0,
+      "open_tickets": 1,
+      "previous_tickets": [],
+      "note": "First time contacting support"
+    }
+  },
+  "cus_2002": {
+    "customer_id": "cus_2002",
+    "name": "Somchai Wongsakul",
+    "company": "Siam Retail Analytics Co., Ltd.",
+    "plan": "enterprise",
+    "plan_note": "Annual contract, renewal in 4 months",
+    "tenure_months": 8,
+    "region": "asia-southeast",
+    "seats": 45,
+    "preferred_language": "th",
+    "activity": "daily active, 41 of 45 seats used in the last 7 days",
+    "devices": [
+      { "platform": "web", "app_version": "web" }
+    ],
+    "account_manager": "Pim (Customer Success, APAC)",
+    "contract_sla": "Enterprise P1: first human response within 1 hour, 24/7",
+    "support_history": {
+      "total_tickets": 3,
+      "open_tickets": 1,
+      "previous_tickets": [
+        { "ticket_id": "T-0412", "summary": "SSO setup question", "urgency": "low", "resolved": true },
+        { "ticket_id": "T-0587", "summary": "Seat invoice clarification", "urgency": "low", "resolved": true },
+        { "ticket_id": "T-0790", "summary": "CSV import slow for large files", "urgency": "medium", "resolved": true }
+      ],
+      "note": "No previous critical issues"
+    }
+  },
+  "cus_3003": {
+    "customer_id": "cus_3003",
+    "name": "Maya Chen",
+    "company": null,
+    "plan": "pro",
+    "plan_note": "Monthly subscription, payments up to date",
+    "tenure_months": 5,
+    "region": "us-east",
+    "seats": 1,
+    "preferred_language": "en",
+    "activity": "daily logins",
+    "devices": [
+      { "platform": "macOS desktop app", "app_version": "4.1.3" },
+      { "platform": "web", "app_version": "web" }
+    ],
+    "account_manager": null,
+    "support_history": {
+      "total_tickets": 0,
+      "open_tickets": 1,
+      "previous_tickets": [],
+      "note": "No previous support tickets"
+    }
+  }
+}
