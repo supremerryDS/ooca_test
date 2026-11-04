@@ -5,6 +5,7 @@ triage-agent run --ticket-id T-1002   # just one
 triage-agent run --output results.json
 triage-agent eval                     # score against evals/golden_labels.json
 triage-agent tools                    # print the tool schemas sent to OpenAI
+triage-agent serve                    # HTTP API, interactive docs at /docs
 """
 
 from __future__ import annotations
@@ -76,6 +77,18 @@ def cmd_tools(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace, settings: Settings) -> int:
+    import uvicorn
+
+    from triage_agent.api import create_app
+
+    if not os.getenv("OPENAI_API_KEY"):
+        console.print("[yellow]OPENAI_API_KEY is not set: /docs works, but triage requests will return 503.[/]")
+    console.print(f"API docs: [bold]http://{args.host}:{args.port}/docs[/]  (Ctrl+C to stop)")
+    uvicorn.run(create_app(settings), host=args.host, port=args.port)
+    return 0
+
+
 # --------------------------------------------------------------------------- #
 # Helpers                                                                      #
 # --------------------------------------------------------------------------- #
@@ -139,6 +152,10 @@ def _parser() -> argparse.ArgumentParser:
     tools = sub.add_parser("tools", help="print tool definitions (JSON schema sent to the model)")
     tools.set_defaults(handler=cmd_tools)
 
+    serve = sub.add_parser("serve", help="run the HTTP API (FastAPI) with interactive docs at /docs")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.set_defaults(handler=cmd_serve)
     return parser
 
 
