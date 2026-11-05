@@ -37,7 +37,9 @@
 1. **Offline before release:** a labelled set covering urgency, action, team and expected tools
    (`triage-agent eval`), growing from real tickets, including edge cases (multilingual, injection,
    mixed issues). Run on every prompt or model change as a regression gate. Use LLM-as-judge plus human
-   spot checks for reply quality and groundedness.
+   spot checks for reply quality and groundedness. The same ticket can get a different answer on
+   another run, even at temperature 0, so I'd run the set several times and gate on the pass rate,
+   not on one run.
 2. **Shadow mode, then gradual rollout:** the agent triages in parallel with humans. Compare
    urgency and routing agreement before enabling auto-replies, starting with `low` tickets.
 3. **Online metrics:** human override rate by field, re-routing and re-opened tickets,
