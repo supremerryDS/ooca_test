@@ -117,3 +117,82 @@ def test_context_takes_plan_from_customer_history_tool():
     assert ctx.customer_plan == "enterprise"
     assert ctx.retrieved_kb_ids == {"KB-ENT-001"}
     assert PolicyContext.from_tool_calls([]).customer_plan is None
+
+
+# --- Active incident in the customer's region (any plan) -------------------------------
+PRO_IN_INCIDENT = PolicyContext(
+    retrieved_kb_ids=KB_SEEN.retrieved_kb_ids,
+    customer_plan="pro",
+    customer_region="asia-southeast",
+    degraded_regions={"asia-southeast": ("INC-2041",)},
+)
+
+
+def status_record(region: str, status: str, *incident_ids: str) -> ToolCallRecord:
+    monitoring = {"status": status, "active_incidents": [{"incident_id": i} for i in incident_ids]}
+    return ToolCallRecord(
+        tool_name="check_service_status",
+        arguments={"region": region},
+        ok=True,
+        output={"region": region, "internal_monitoring": monitoring},
+    )
+
+
+def test_pro_customer_reporting_a_known_incident_goes_to_incident_team():
+    decision = decide(
+        urgency="medium", action="route_to_specialist", route_to="technical_support", extracted=extracted("outage")
+    )
+    final, overrides = ENGINE.apply(decision, PRO_IN_INCIDENT)
+    assert (final.urgency, final.action, final.route_to) == (
+        Urgency.HIGH,
+        Action.ROUTE_TO_SPECIALIST,
+        Team.INCIDENT_RESPONSE,
+    )
+    assert [o.rule for o in overrides] == ["active_incident_in_customer_region"]
+    assert "INC-2041" in overrides[0].reason
+
+
+def test_auto_reply_about_access_during_incident_is_routed_instead():
+    final, _ = ENGINE.apply(decide(extracted=extracted("account_access")), PRO_IN_INCIDENT)
+    assert (final.action, final.route_to) == (Action.ROUTE_TO_SPECIALIST, Team.INCIDENT_RESPONSE)
+
+
+def test_incident_rule_keeps_an_existing_escalation():
+    decision = decide(
+        urgency="critical", action="escalate_to_human", route_to="incident_response", extracted=extracted("outage")
+    )
+    final, overrides = ENGINE.apply(decision, PRO_IN_INCIDENT)
+    assert overrides == []
+    assert final.action is Action.ESCALATE_TO_HUMAN
+
+
+def test_unrelated_question_during_incident_is_untouched():
+    final, overrides = ENGINE.apply(decide(), PRO_IN_INCIDENT)
+    assert overrides == []
+    assert final.action is Action.AUTO_RESPOND
+
+
+def test_incident_in_another_region_is_ignored():
+    elsewhere = PolicyContext(
+        retrieved_kb_ids=KB_SEEN.retrieved_kb_ids,
+        customer_plan="pro",
+        customer_region="us-east",
+        degraded_regions={"asia-southeast": ("INC-2041",)},
+    )
+    decision = decide(
+        urgency="medium", action="route_to_specialist", route_to="technical_support", extracted=extracted("outage")
+    )
+    _, overrides = ENGINE.apply(decision, elsewhere)
+    assert overrides == []
+
+
+def test_context_records_only_degraded_regions():
+    ctx = PolicyContext.from_tool_calls(
+        [
+            ToolCallRecord(tool_name="get_customer_history", arguments={}, ok=True, output={"region": "us-east"}),
+            status_record("us-east", "operational"),
+            status_record("asia-southeast", "degraded", "INC-2041"),
+        ]
+    )
+    assert ctx.degraded_regions == {"asia-southeast": ("INC-2041",)}
+    assert ctx.incidents_affecting_customer() == {}

@@ -152,3 +152,34 @@ def test_enterprise_sla_rule_uses_the_plan_returned_by_customer_history(make_age
     assert result.decision.action is Action.ESCALATE_TO_HUMAN
     assert result.decision.urgency is Urgency.HIGH
     assert [o.rule for o in result.policy_overrides] == ["enterprise_sla_requires_human"]
+
+
+def test_monitoring_evidence_and_enterprise_sla_combine_for_ticket_2(make_agent, tickets):
+    underrated = decision_payload(
+        urgency="medium",
+        action="route_to_specialist",
+        route_to="technical_support",
+        kb_article_ids=[],
+        extracted={**decision_payload()["extracted"], "issue_type": "outage", "risk_flags": []},
+    )
+    llm = ScriptedLLM(
+        [
+            respond(
+                tool_call("get_customer_history", {"customer_id": "cus_2002"}),
+                tool_call("check_service_status", {"region": "asia-southeast"}),
+            ),
+            respond(tool_call("submit_triage", underrated)),
+        ]
+    )
+    result = make_agent(llm).triage(tickets["T-1002"])
+
+    decision = result.decision
+    assert (decision.urgency, decision.action, decision.route_to) == (
+        Urgency.HIGH,
+        Action.ESCALATE_TO_HUMAN,
+        Team.INCIDENT_RESPONSE,
+    )
+    assert [o.rule for o in result.policy_overrides] == [
+        "active_incident_in_customer_region",
+        "enterprise_sla_requires_human",
+    ]

@@ -90,10 +90,19 @@ what the customer claims about themselves in the ticket. Use them like this:
   you used. Set `route_to` to null.
 - `route_to_specialist`: a specific team must act (refund, bug investigation, account
   change) and the normal queue/SLA is acceptable. Set `route_to`.
-- `escalate_to_human`: immediate human ownership is needed: `critical` urgency; outage
-  affecting many users; chargeback or legal threat; enterprise customer at risk; safety
-  concern; or you cannot determine the right action. Set `route_to` to the team that
-  should own it.
+- `escalate_to_human`: immediate human ownership is needed: `critical` urgency; an outage
+  affecting many users that monitoring has not picked up yet (this ticket may be the first
+  report); chargeback or legal threat; enterprise customer at risk; safety concern; or you
+  cannot determine the right action. Set `route_to` to the team that should own it.
+
+**During a known incident** (`check_service_status` shows the customer's region degraded or
+with an active incident), the incident itself is already being handled. A ticket about errors
+or access in that region is at least `high`, goes to `incident_response` with
+`route_to_specialist`, names the incident ID in `internal_note`, and its `customer_reply` says
+we are aware of the problem and working on it. Use `escalate_to_human` only when there is an
+extra reason: the customer's whole organisation is blocked, an enterprise SLA, a chargeback or
+legal threat, or another reason listed above. During an outage many customers report the same
+problem, and sending every ticket to a person at once would bury the team.
 
 Teams for `route_to`:
 - `billing`: payments, charges, refunds, plan activation.

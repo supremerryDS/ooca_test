@@ -12,7 +12,7 @@ Adding a rule = subclass `PolicyRule` and add it to `default_rules`.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, ClassVar
@@ -29,6 +29,7 @@ from triage_agent.schemas import (
 )
 from triage_agent.tools.customer_history import GetCustomerHistoryTool
 from triage_agent.tools.knowledge_base import SearchKnowledgeBaseTool
+from triage_agent.tools.service_status import CheckServiceStatusTool
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,9 @@ class PolicyContext:
 
     retrieved_kb_ids: frozenset[str] = field(default_factory=frozenset)
     customer_plan: str | None = None
+    customer_region: str | None = None
+    degraded_regions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    """Regions where monitoring showed a problem -> active incident IDs (may be empty)."""
 
     @classmethod
     def from_tool_calls(cls, tool_calls: Iterable[ToolCallRecord]) -> PolicyContext:
@@ -51,8 +55,28 @@ class PolicyContext:
             if record.tool_name == SearchKnowledgeBaseTool.name
             for result in record.output.get("results", [])
         }
-        plans = [record.output.get("plan") for record in records if record.tool_name == GetCustomerHistoryTool.name]
-        return cls(retrieved_kb_ids=frozenset(ids), customer_plan=plans[-1] if plans else None)
+        customers = [record.output for record in records if record.tool_name == GetCustomerHistoryTool.name]
+        customer = customers[-1] if customers else {}
+        degraded = {}
+        for record in records:
+            if record.tool_name != CheckServiceStatusTool.name:
+                continue
+            monitoring = record.output.get("internal_monitoring", {})
+            incidents = tuple(i.get("incident_id", "unknown") for i in monitoring.get("active_incidents", []))
+            if monitoring.get("status") != "operational" or incidents:
+                degraded[record.output["region"]] = incidents
+        return cls(
+            retrieved_kb_ids=frozenset(ids),
+            customer_plan=customer.get("plan"),
+            customer_region=customer.get("region"),
+            degraded_regions=degraded,
+        )
+
+    def incidents_affecting_customer(self) -> dict[str, tuple[str, ...]]:
+        """Degraded regions that matter for this customer (all of them if the region is unknown)."""
+        if self.customer_region is None:
+            return dict(self.degraded_regions)
+        return {r: ids for r, ids in self.degraded_regions.items() if r == self.customer_region}
 
 
 @dataclass(frozen=True)
@@ -116,6 +140,40 @@ class HighRiskNeedsHumanRule(PolicyRule):
                 "urgency": _at_least(decision.urgency, Urgency.HIGH),
                 "action": Action.ESCALATE_TO_HUMAN,
                 "route_to": decision.route_to or Team.GENERAL_SUPPORT,
+            },
+        )
+
+
+class ActiveIncidentRule(PolicyRule):
+    """Monitoring confirms a problem in the customer's region: the ticket belongs to incident response.
+
+    Applies to every plan, because an outage is urgent whoever reports it. The evidence comes
+    from `check_service_status`, not from the model's judgement, so it also separates a real
+    outage from a problem on the customer's side.
+
+    The ticket is routed to the incident team but not escalated to a person on its own: during
+    an outage hundreds of tickets describe the same problem, so they are linked to the incident
+    and answered together. Other rules (critical, enterprise SLA, chargeback) can still escalate.
+    """
+
+    name = "active_incident_in_customer_region"
+    RELATED_ISSUES: ClassVar[frozenset[IssueType]] = frozenset({IssueType.OUTAGE, IssueType.ACCOUNT_ACCESS})
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        incidents = ctx.incidents_affecting_customer()
+        issues = {decision.extracted.issue_type, *decision.extracted.secondary_issue_types}
+        if not incidents or not self.RELATED_ISSUES & issues:
+            return None
+        keep_escalation = decision.action is Action.ESCALATE_TO_HUMAN
+        found = "; ".join(
+            f"{region}: {', '.join(ids) or 'degraded, no incident yet'}" for region, ids in incidents.items()
+        )
+        return RuleOutcome(
+            reason=f"Monitoring confirms a problem in the customer's region ({found}).",
+            updates={
+                "urgency": _at_least(decision.urgency, Urgency.HIGH),
+                "action": Action.ESCALATE_TO_HUMAN if keep_escalation else Action.ROUTE_TO_SPECIALIST,
+                "route_to": Team.INCIDENT_RESPONSE,
             },
         )
 
@@ -197,6 +255,7 @@ def default_rules(confidence_threshold: float) -> list[PolicyRule]:
         SafetyConcernRule(),
         CriticalNeedsHumanRule(),
         HighRiskNeedsHumanRule(),
+        ActiveIncidentRule(),
         EnterpriseSlaRule(),
         DropUngroundedCitationsRule(),
         GroundedAutoResponseRule(),
