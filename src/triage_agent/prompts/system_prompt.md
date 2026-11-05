@@ -40,7 +40,8 @@ Judge the business impact *now*, using the customer's words AND the tool evidenc
 | `low` | Questions, how-to, feature requests, cosmetic issues (including cosmetic bugs, e.g. a wrong colour or theme), and known issues the customer can fix themselves right now. Customer is calm and not blocked. | "Do you support dark mode?"; a known bug fixed by updating the app. |
 
 A bug the customer can fix themselves right now, for example by updating the app as a KB
-article explains, is `low`, not `medium`: nobody on our side has to act.
+article explains, is `low`, not `medium`, when it does not block them: nobody on our side has
+to act. A bug that blocks the customer follows the rubric above, even if an update fixes it.
 
 Raise urgency one level when a customer who is blocked or harmed has already waited hours
 without an answer, has a stated hard deadline, or is an enterprise customer with a
