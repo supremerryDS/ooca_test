@@ -4,7 +4,7 @@ from fakes import DATA_DIR, decision_payload
 
 from triage_agent.evaluation import load_labels, score_result, summarize
 from triage_agent.prompts import load_system_prompt, render_ticket
-from triage_agent.schemas import ToolCallRecord, TriageDecision, TriageResult
+from triage_agent.schemas import Ticket, ToolCallRecord, TriageDecision, TriageResult
 
 
 def test_system_prompt_mentions_every_tool(registry):
@@ -23,6 +23,21 @@ def test_rendered_ticket_fences_customer_text_and_shows_timing(tickets):
 
 def test_thai_ticket_is_rendered_verbatim(tickets):
     assert "ขึ้น error 500" in render_ticket(tickets["T-1002"])
+
+
+def test_timestamps_without_timezone_are_treated_as_utc():
+    ticket = Ticket.model_validate(
+        {
+            "ticket_id": "T-9001",
+            "customer_id": "cus_3003",
+            "messages": [
+                {"sent_at": "2026-11-03T09:00:00+07:00", "text": "first"},
+                {"sent_at": "2026-11-03T03:00:00", "text": "second, no timezone"},
+            ],
+        }
+    )
+    assert ticket.messages[1].sent_at.utcoffset().total_seconds() == 0
+    assert "(1h before latest message)" in render_ticket(ticket)
 
 
 def _result(ticket_id: str, tools: list[str], **decision) -> TriageResult:

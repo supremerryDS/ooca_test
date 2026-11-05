@@ -10,7 +10,7 @@ so the generated JSON schema stays within what OpenAI strict mode accepts.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
 
@@ -90,6 +90,13 @@ class TicketMessage(BaseModel):
     author: Literal["customer", "support"] = "customer"
     sent_at: datetime
     text: str
+
+    @field_validator("sent_at")
+    @classmethod
+    def _assume_utc_when_timezone_missing(cls, value: datetime) -> datetime:
+        # Helpdesks do not always send a timezone. Mixing timestamps with and without one
+        # would make comparisons fail, so a missing timezone is treated as UTC.
+        return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
 class Ticket(BaseModel):
