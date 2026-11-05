@@ -138,7 +138,7 @@ Configuration is read from environment variables or `.env`:
 |---|---|---|
 | `OPENAI_API_KEY` | (required) | Your OpenAI key |
 | `OPENAI_MODEL` | `gpt-5.4-mini` | Any GPT model with tool calling, e.g. `gpt-4.1` |
-| `OPENAI_REASONING_EFFORT` | unset | `low`/`medium`/`high` for reasoning models |
+| `OPENAI_REASONING_EFFORT` | unset | `low`/`medium`/`high` for models that allow reasoning with tool calls on Chat Completions, e.g. `gpt-5-mini`. Leave it unset for `gpt-5.4-mini`, which rejects that combination |
 | `OPENAI_TEMPERATURE` | unset (`.env.example` sets `0`) | `0` makes answers more consistent between runs. Remove the line if you set `OPENAI_REASONING_EFFORT` or use a model that only accepts the default temperature. If you forget, the client logs a warning and retries without it |
 | `OPENAI_TIMEOUT_S` | `60` | Timeout for one OpenAI request, in seconds |
 | `TRIAGE_MAX_STEPS` | `8` | Max LLM turns per ticket before forcing a decision |
