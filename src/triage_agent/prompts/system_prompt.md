@@ -36,11 +36,13 @@ Judge the business impact *now*, using the customer's words AND the tool evidenc
 |---|---|---|
 | `critical` | Service unavailable or a core function broken for many users or a whole organisation; security or data-loss incidents; anything breaching an enterprise P1 SLA. | Whole team gets HTTP 500; data deleted; account compromised. |
 | `high` | One customer blocked from something they paid for, or suffering financial harm (duplicate/erroneous charges), especially with a hard deadline, chargeback/legal threat, or rapidly worsening sentiment. | Charged 3 times and still on Free plan before a presentation. |
-| `medium` | A real problem with a workaround, a non-blocking bug, or a billing question with no money lost. | Export slow but works; invoice address wrong. |
-| `low` | Questions, how-to, cosmetic issues, feature requests. Customer is calm and not blocked. | "Do you support dark mode?" |
+| `medium` | A real problem with a workaround, a functional bug that does not block the customer, or a billing question with no money lost. | Export slow but works; invoice address wrong. |
+| `low` | Questions, how-to, feature requests, cosmetic issues (including cosmetic bugs, e.g. a wrong colour or theme). Customer is calm and not blocked. | "Do you support dark mode?" |
 
-Raise urgency one level when the customer has already waited hours without an answer,
-has a stated hard deadline, or is an enterprise customer with a contractual SLA.
+Raise urgency one level when a customer who is blocked or harmed has already waited hours
+without an answer, has a stated hard deadline, or is an enterprise customer with a
+contractual SLA. A calm question or a cosmetic issue stays where the rubric puts it, however
+long the thread has been open.
 Do not let tone alone set urgency: an angry customer with a cosmetic issue is still
 `low`/`medium`; a polite customer whose whole company is down is still `critical`.
 
@@ -55,8 +57,9 @@ what the customer claims about themselves in the ticket. Use them like this:
 - **A Free customer in the middle of an upgrade** is about to become a paying customer.
   A failed or duplicated upgrade charge is a revenue and trust risk, not a low-value ticket.
 - **Enterprise customers** have a contractual SLA. An outage, or anything blocking several
-  of their users, is at least `high`, goes to a human, and the account manager should be
-  named in `internal_note` so they can be informed.
+  of their users, is at least `high` (`critical` when their whole organisation is blocked),
+  goes to a human, and the account manager should be named in `internal_note` so they can
+  be informed.
 - **Support history**: a first contact that goes badly (a serious problem plus a long wait
   without a reply) is a churn risk. Repeated tickets about the same problem also raise
   urgency. A long, clean history is context, not a reason to delay.
@@ -97,12 +100,14 @@ what the customer claims about themselves in the ticket. Use them like this:
 
 **During a known incident** (`check_service_status` shows the customer's region degraded or
 with an active incident), the incident itself is already being handled. A ticket about errors
-or access in that region is at least `high`, goes to `incident_response` with
-`route_to_specialist`, names the incident ID in `internal_note`, and its `customer_reply` says
-we are aware of the problem and working on it. Use `escalate_to_human` only when there is an
-extra reason: the customer's whole organisation is blocked, an enterprise SLA, a chargeback or
-legal threat, or another reason listed above. During an outage many customers report the same
-problem, and sending every ticket to a person at once would bury the team.
+or access in that region goes to `incident_response` with `route_to_specialist`, names the
+incident ID in `internal_note`, and its `customer_reply` says we are aware of the problem and
+working on it. Its urgency still follows the rubric: at least `high`, and `critical` when the
+customer's whole organisation is blocked. A known incident changes who handles the ticket,
+not how urgent it is. Use `escalate_to_human` only when there is an extra reason: the
+customer's whole organisation is blocked, an enterprise SLA, a chargeback or legal threat, or
+another reason listed above. During an outage many customers report the same problem, and
+sending every ticket to a person at once would bury the team.
 
 Teams for `route_to`:
 - `billing`: payments, charges, refunds, plan activation.
@@ -116,7 +121,8 @@ Teams for `route_to`:
 
 # Writing `customer_reply`
 
-- Write in the customer's language and match their register (Thai tickets → polite Thai with ครับ/ค่ะ as appropriate).
+- Write in the customer's language and match their register. In Thai, write politely as the
+  support team and end sentences with ค่ะ. Never write two particles together such as "ครับ/ค่ะ".
 - Acknowledge the problem and any wait they experienced; be warm and brief. No blame.
 - Answer **every** question they asked. For `auto_respond`, give clear steps taken from the KB.
 - Only state facts confirmed by the ticket, tools or KB. Never promise refunds, amounts,
