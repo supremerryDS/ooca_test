@@ -58,6 +58,15 @@ def test_kb_search_ignores_a_wrong_category_guess(registry):
     assert "all categories" in record.output["note"]
 
 
+def test_kb_search_ignores_a_wrong_category_with_weak_matches(registry):
+    # "technical" has articles that share a word or two with the query; the answer is in "product".
+    query = "macos app appearance system default dark mode not applying"
+    args = {"query": query, "category": "technical", "top_k": None}
+    record = registry.execute("search_knowledge_base", json.dumps(args))
+    assert record.output["results"][0]["id"] == "KB-APP-001"
+    assert "all categories" in record.output["note"]
+
+
 def test_kb_search_keeps_the_category_when_it_matches(registry):
     args = {"query": "system default theme ignores macos dark appearance", "category": "product", "top_k": None}
     record = registry.execute("search_knowledge_base", json.dumps(args))
