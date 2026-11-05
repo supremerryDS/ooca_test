@@ -100,6 +100,15 @@ def test_llm_outage_falls_back_to_human_escalation(make_agent, tickets):
     assert "503" in (result.error or "")
 
 
+def test_unexpected_error_still_falls_back_to_a_human(make_agent, tickets):
+    llm = ScriptedLLM([KeyError("bug somewhere")])
+    result = make_agent(llm).triage(tickets["T-1003"])
+
+    assert result.status == "fallback"
+    assert result.decision.action is Action.ESCALATE_TO_HUMAN
+    assert "KeyError" in (result.error or "")
+
+
 def test_no_valid_decision_within_step_budget_falls_back(make_agent, tickets):
     lookup = respond(tool_call("get_customer_history", {"customer_id": "cus_3003"}))
     bad_submit = respond(tool_call("submit_triage", "{not json"))

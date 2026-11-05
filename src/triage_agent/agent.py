@@ -48,8 +48,8 @@ class AgentError(RuntimeError):
 class _Run:
     """Mutable state of a single triage run (kept out of the agent so the agent is reusable)."""
 
-    def __init__(self, system_prompt: str, ticket: Ticket) -> None:
-        self.conversation = [ChatMessage.system(system_prompt), ChatMessage.user(render_ticket(ticket))]
+    def __init__(self) -> None:
+        self.conversation: list[ChatMessage] = []
         self.tool_calls: list[ToolCallRecord] = []
         self.usage = TokenUsage()
         self.steps = 0
@@ -76,16 +76,21 @@ class TriageAgent:
 
     def triage(self, ticket: Ticket) -> TriageResult:
         started = time.perf_counter()
-        run = _Run(self._system_prompt, ticket)
+        run = _Run()
         llm_decision: TriageDecision | None = None
         error: str | None = None
 
         try:
+            run.conversation = [ChatMessage.system(self._system_prompt), ChatMessage.user(render_ticket(ticket))]
             llm_decision = self._run_loop(run)
             proposed = llm_decision
         except (AgentError, LLMError) as exc:
             logger.error("Triage failed for %s: %s", ticket.ticket_id, exc)
             error = str(exc)
+            proposed = TriageDecision.fallback(reason=error)
+        except Exception as exc:  # noqa: BLE001 - last resort: a ticket must never be dropped
+            logger.exception("Unexpected error while triaging %s", ticket.ticket_id)
+            error = f"Unexpected error: {type(exc).__name__}: {exc}"
             proposed = TriageDecision.fallback(reason=error)
 
         final, overrides = self._policy.apply(proposed, PolicyContext.from_tool_calls(run.tool_calls))
