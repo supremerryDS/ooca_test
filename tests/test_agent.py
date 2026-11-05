@@ -131,3 +131,24 @@ def test_policy_overrides_are_applied_to_llm_decision(make_agent, tickets):
     assert result.decision.urgency is Urgency.HIGH
     assert result.decision.route_to is Team.BILLING
     assert [o.rule for o in result.policy_overrides] == ["high_risk_requires_human"]
+
+
+def test_enterprise_sla_rule_uses_the_plan_returned_by_customer_history(make_agent, tickets):
+    underrated = decision_payload(
+        urgency="medium",
+        action="route_to_specialist",
+        route_to="technical_support",
+        kb_article_ids=[],
+        extracted={**decision_payload()["extracted"], "issue_type": "outage", "risk_flags": []},
+    )
+    llm = ScriptedLLM(
+        [
+            respond(tool_call("get_customer_history", {"customer_id": "cus_2002"})),
+            respond(tool_call("submit_triage", underrated)),
+        ]
+    )
+    result = make_agent(llm).triage(tickets["T-1002"])
+
+    assert result.decision.action is Action.ESCALATE_TO_HUMAN
+    assert result.decision.urgency is Urgency.HIGH
+    assert [o.rule for o in result.policy_overrides] == ["enterprise_sla_requires_human"]

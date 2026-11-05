@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 
 from triage_agent.schemas import (
     Action,
+    IssueType,
     PolicyOverride,
     RiskFlag,
     Team,
@@ -26,24 +27,32 @@ from triage_agent.schemas import (
     TriageDecision,
     Urgency,
 )
+from triage_agent.tools.customer_history import GetCustomerHistoryTool
 from triage_agent.tools.knowledge_base import SearchKnowledgeBaseTool
 
 
 @dataclass(frozen=True)
 class PolicyContext:
-    """Facts about the run that rules may need (beyond the decision itself)."""
+    """Facts about the run that rules may need (beyond the decision itself).
+
+    Everything here comes from tool results (our own systems), never from the
+    ticket text, so a customer cannot change it by what they write.
+    """
 
     retrieved_kb_ids: frozenset[str] = field(default_factory=frozenset)
+    customer_plan: str | None = None
 
     @classmethod
     def from_tool_calls(cls, tool_calls: Iterable[ToolCallRecord]) -> PolicyContext:
+        records = [record for record in tool_calls if record.ok]
         ids = {
             result["id"]
-            for record in tool_calls
-            if record.ok and record.tool_name == SearchKnowledgeBaseTool.name
+            for record in records
+            if record.tool_name == SearchKnowledgeBaseTool.name
             for result in record.output.get("results", [])
         }
-        return cls(retrieved_kb_ids=frozenset(ids))
+        plans = [record.output.get("plan") for record in records if record.tool_name == GetCustomerHistoryTool.name]
+        return cls(retrieved_kb_ids=frozenset(ids), customer_plan=plans[-1] if plans else None)
 
 
 @dataclass(frozen=True)
@@ -101,13 +110,39 @@ class HighRiskNeedsHumanRule(PolicyRule):
         flags = self.HIGH_RISK_FLAGS.intersection(decision.extracted.risk_flags)
         if not flags:
             return None
-        urgency = decision.urgency if decision.urgency.rank >= Urgency.HIGH.rank else Urgency.HIGH
         return RuleOutcome(
             reason=f"High-risk flags present ({', '.join(sorted(f.value for f in flags))}).",
             updates={
-                "urgency": urgency,
+                "urgency": _at_least(decision.urgency, Urgency.HIGH),
                 "action": Action.ESCALATE_TO_HUMAN,
                 "route_to": decision.route_to or Team.GENERAL_SUPPORT,
+            },
+        )
+
+
+class EnterpriseSlaRule(PolicyRule):
+    """Enterprise customers have a contractual SLA: outages or multi-user impact get a human fast.
+
+    The plan comes from `get_customer_history` (our CRM), not from the ticket text.
+    """
+
+    name = "enterprise_sla_requires_human"
+
+    def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
+        if ctx.customer_plan != "enterprise":
+            return None
+        extracted = decision.extracted
+        is_widespread = (
+            extracted.issue_type is IssueType.OUTAGE or RiskFlag.MULTIPLE_USERS_AFFECTED in extracted.risk_flags
+        )
+        if not is_widespread:
+            return None
+        return RuleOutcome(
+            reason="Enterprise customer with an outage or multi-user impact (contractual SLA).",
+            updates={
+                "urgency": _at_least(decision.urgency, Urgency.HIGH),
+                "action": Action.ESCALATE_TO_HUMAN,
+                "route_to": decision.route_to or Team.INCIDENT_RESPONSE,
             },
         )
 
@@ -162,6 +197,7 @@ def default_rules(confidence_threshold: float) -> list[PolicyRule]:
         SafetyConcernRule(),
         CriticalNeedsHumanRule(),
         HighRiskNeedsHumanRule(),
+        EnterpriseSlaRule(),
         DropUngroundedCitationsRule(),
         GroundedAutoResponseRule(),
         LowConfidenceReviewRule(confidence_threshold),
@@ -191,6 +227,11 @@ class PolicyEngine:
             decision = decision.model_copy(update=outcome.updates)
             overrides.append(PolicyOverride(rule=rule.name, reason=outcome.reason, changes=changes))
         return decision, overrides
+
+
+def _at_least(current: Urgency, floor: Urgency) -> Urgency:
+    """Raise urgency to `floor` if it is lower; never lower it."""
+    return current if current.rank >= floor.rank else floor
 
 
 def _plain(value: Any) -> Any:

@@ -178,8 +178,10 @@ pytest
    (strict JSON schema generated from Pydantic). Invalid decisions are sent back to the model with
    the validation error so it can fix them. On the last step the model is forced to submit.
 4. **Guardrails in code** run on the decision, for example: critical tickets and chargeback threats
-   always go to a human, auto-replies must cite a KB article that was actually retrieved, and
-   low-confidence auto-replies go to review. Every change is recorded as a `PolicyOverride`.
+   always go to a human, an enterprise customer with an outage or multi-user impact always gets a
+   human (the plan is read from `get_customer_history`, not from the ticket text), auto-replies must
+   cite a KB article that was actually retrieved, and low-confidence auto-replies go to review.
+   Every change is recorded as a `PolicyOverride`.
 5. If the LLM fails or never produces a valid decision, a **fail-safe decision** escalates the
    ticket to a human. No ticket is dropped.
 
