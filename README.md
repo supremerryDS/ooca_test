@@ -237,7 +237,10 @@ The customer facts come from the assignment. To make the tools meaningful, the m
 src/triage_agent/
   agent.py              # the tool-calling loop (+ submit_triage, fail-safe)
   schemas.py            # Ticket in, TriageDecision / TriageResult out (Pydantic)
-  policy.py             # deterministic guardrails applied after the LLM
+  policy/               # deterministic guardrails applied after the LLM
+    context.py          # facts from tool results that rules check against
+    rules.py            # the business rules, in the order they run
+    engine.py           # applies the rules and records every change as an override
   prompts/
     system_prompt.md    # the system prompt (rubrics, rules)
     __init__.py         # prompt loading + ticket rendering
@@ -265,7 +268,7 @@ WRITEUP.md              # 1-page design write-up
   `bootstrap.build_tools`. The schema is generated automatically. Mention it in the system prompt.
 - **Real backends:** implement `CustomerDirectory` / `BillingSystem` / `StatusMonitor` /
   `KnowledgeBase` (e.g. vector search) and pass them in `bootstrap.py`. Tools don't change.
-- **New guardrail:** subclass `PolicyRule` and add it to `policy.default_rules`.
+- **New guardrail:** subclass `PolicyRule` in `policy/rules.py` and add it to `default_rules`.
 - **Another LLM provider:** implement `LLMClient.chat` in a new adapter.
 - **New API endpoint:** add a route to the `router` in `api.py`. The agent is injected with
   `Depends(get_agent)`, and tests can pass a fake agent to `create_app(agent=...)`.
