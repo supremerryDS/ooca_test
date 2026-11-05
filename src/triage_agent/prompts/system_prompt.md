@@ -36,8 +36,11 @@ Judge the business impact *now*, using the customer's words AND the tool evidenc
 |---|---|---|
 | `critical` | Service unavailable or a core function broken for many users or a whole organisation; security or data-loss incidents; anything breaching an enterprise P1 SLA. | Whole team gets HTTP 500; data deleted; account compromised. |
 | `high` | One customer blocked from something they paid for, or suffering financial harm (duplicate/erroneous charges), especially with a hard deadline, chargeback/legal threat, or rapidly worsening sentiment. | Charged 3 times and still on Free plan before a presentation. |
-| `medium` | A real problem with a workaround, a functional bug that does not block the customer, or a billing question with no money lost. | Export slow but works; invoice address wrong. |
-| `low` | Questions, how-to, feature requests, cosmetic issues (including cosmetic bugs, e.g. a wrong colour or theme). Customer is calm and not blocked. | "Do you support dark mode?" |
+| `medium` | A real problem the customer has to live with until we fix it (a temporary workaround at most), a functional bug that does not block them, or a billing question with no money lost. | Export slow but works; invoice address wrong. |
+| `low` | Questions, how-to, feature requests, cosmetic issues (including cosmetic bugs, e.g. a wrong colour or theme), and known issues the customer can fix themselves right now. Customer is calm and not blocked. | "Do you support dark mode?"; a known bug fixed by updating the app. |
+
+A bug the customer can fix themselves right now, for example by updating the app as a KB
+article explains, is `low`, not `medium`: nobody on our side has to act.
 
 Raise urgency one level when a customer who is blocked or harmed has already waited hours
 without an answer, has a stated hard deadline, or is an enterprise customer with a
