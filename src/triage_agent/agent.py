@@ -96,7 +96,7 @@ class TriageAgent:
         """Triage one ticket end to end.
 
         Runs the tool-calling loop, then applies the policy guardrails. Never raises:
-        if the model, a tool or anything else fails, the result holds a fail-safe
+        if the model, a tool, a guardrail or anything else fails, the result holds a fail-safe
         decision that sends the ticket to a human.
 
         Args:
@@ -124,7 +124,13 @@ class TriageAgent:
             error = f"Unexpected error: {type(exc).__name__}: {exc}"
             proposed = TriageDecision.fallback(reason=error)
 
-        final, overrides = self._policy.apply(proposed, PolicyContext.from_tool_calls(run.tool_calls))
+        try:
+            final, overrides = self._policy.apply(proposed, PolicyContext.from_tool_calls(run.tool_calls))
+        except Exception as exc:  # noqa: BLE001 - a broken guardrail must not drop the ticket either
+            logger.exception("Policy guardrails failed for %s", ticket.ticket_id)
+            error = error or f"Policy error: {type(exc).__name__}: {exc}"
+            final, overrides = TriageDecision.fallback(reason=error), []
+
         return TriageResult(
             ticket_id=ticket.ticket_id,
             status="completed" if error is None else "fallback",

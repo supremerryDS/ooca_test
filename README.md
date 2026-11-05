@@ -139,6 +139,7 @@ Configuration is read from environment variables or `.env`:
 | `OPENAI_API_KEY` | (required) | Your OpenAI key |
 | `OPENAI_MODEL` | `gpt-5.4-mini` | Any GPT model with tool calling, e.g. `gpt-4.1` |
 | `OPENAI_REASONING_EFFORT` | unset | `low`/`medium`/`high` for reasoning models |
+| `OPENAI_TIMEOUT_S` | `60` | Timeout for one OpenAI request, in seconds |
 | `TRIAGE_MAX_STEPS` | `8` | Max LLM turns per ticket before forcing a decision |
 | `TRIAGE_CONFIDENCE_THRESHOLD` | `0.6` | Below this an auto-reply is sent to human review |
 | `TRIAGE_DATA_DIR` | `./data` | Folder with mock data and the knowledge base |

@@ -4,6 +4,7 @@ import json
 
 from fakes import ScriptedLLM, decision_payload, respond, tool_call
 
+from triage_agent.agent import TriageAgent
 from triage_agent.llm.base import LLMError
 from triage_agent.schemas import Action, Team, Urgency
 
@@ -107,6 +108,21 @@ def test_unexpected_error_still_falls_back_to_a_human(make_agent, tickets):
     assert result.status == "fallback"
     assert result.decision.action is Action.ESCALATE_TO_HUMAN
     assert "KeyError" in (result.error or "")
+
+
+def test_broken_guardrail_still_falls_back_to_a_human(registry, tickets):
+    class BrokenPolicy:
+        def apply(self, decision, ctx):
+            raise RuntimeError("bug in a rule")
+
+    llm = ScriptedLLM([respond(tool_call("submit_triage", decision_payload()))])
+    agent = TriageAgent(llm=llm, tools=registry, policy=BrokenPolicy(), system_prompt="test")
+    result = agent.triage(tickets["T-1003"])
+
+    assert result.status == "fallback"
+    assert result.decision.action is Action.ESCALATE_TO_HUMAN
+    assert result.policy_overrides == []
+    assert "Policy error: RuntimeError" in (result.error or "")
 
 
 def test_no_valid_decision_within_step_budget_falls_back(make_agent, tickets):

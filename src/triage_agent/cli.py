@@ -39,7 +39,8 @@ def main(argv: list[str] | None = None) -> int:
         argv: Arguments without the program name. Defaults to the real command line.
 
     Returns:
-        Exit code: 0 on success, 1 if a ticket fell back to a human, 2 if the API key is missing.
+        Exit code: 0 on success, 1 if `run` had to use the fail-safe for a ticket, 2 if the API key
+        is missing.
     """
     args = _parser().parse_args(argv)
     logging.basicConfig(

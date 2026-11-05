@@ -72,8 +72,9 @@ _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 def tokenize(text: str) -> list[str]:
     """Lowercase, split into words and drop common English stopwords.
 
-    Thai has no spaces between words, so a Thai sentence becomes one token; the model is
-    told to search in English for that reason.
+    Thai is not split into words: Thai has no spaces, and vowel and tone marks break it
+    into meaningless fragments, so Thai queries find nothing useful. The model is told
+    to search in English for that reason.
 
     Args:
         text: Text to tokenize.
