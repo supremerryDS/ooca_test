@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from fakes import DATA_DIR
 
-from triage_agent.tools import BM25KnowledgeBase
+from triage_agent.search import BM25KnowledgeBase
 
 
 @pytest.fixture(scope="module")

@@ -12,8 +12,8 @@ from triage_agent.llm.base import LLMClient
 from triage_agent.policy import PolicyEngine, default_rules
 from triage_agent.prompts import load_system_prompt
 from triage_agent.schemas import Ticket
+from triage_agent.search import BM25KnowledgeBase
 from triage_agent.tools import (
-    BM25KnowledgeBase,
     CheckServiceStatusTool,
     GetBillingTransactionsTool,
     GetCustomerHistoryTool,

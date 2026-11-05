@@ -243,11 +243,12 @@ src/triage_agent/
     __init__.py         # prompt loading + ticket rendering
   tools/
     base.py             # Tool base class + ToolRegistry (validation, error containment)
-    customer_history.py, billing.py, service_status.py, knowledge_base.py (BM25)
+    customer_history.py, billing.py, service_status.py, knowledge_base.py
   llm/
     base.py             # provider-agnostic LLMClient protocol + message types
     openai_client.py    # OpenAI Chat Completions adapter (strict function calling)
   datasources.py        # backend protocols + JSON mock backend
+  search.py             # knowledge-base interface + BM25 search over the FAQ articles
   evaluation.py         # golden-label scoring
   bootstrap.py          # wiring (composition root)
   cli.py / display.py   # terminal app

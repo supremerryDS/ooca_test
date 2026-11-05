@@ -2,6 +2,7 @@
 
 Each backend is a small Protocol so a real implementation (CRM API, Stripe,
 Datadog/Prometheus, ...) can replace the JSON mock without changing any tool.
+The knowledge-base backend lives in `search.py`.
 """
 
 from __future__ import annotations
