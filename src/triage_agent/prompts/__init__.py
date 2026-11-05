@@ -10,9 +10,13 @@ import re
 from datetime import datetime, timedelta
 from importlib import resources
 
-from triage_agent.schemas import Ticket
+from triage_agent.schemas import Ticket, TicketMessage
 
 SYSTEM_PROMPT_FILE = "system_prompt.md"
+
+# Budget for customer text in one prompt. Long threads keep their newest messages, which
+# matter most for urgency and sentiment, so cost stays bounded without rejecting the ticket.
+MAX_PROMPT_TEXT_CHARS = 20_000
 
 # Matches <ticket>, </ticket>, < /TICKET attr="x"> ... in customer-provided text.
 _FENCE_TAG = re.compile(r"<\s*/?\s*ticket\b[^>]*>", re.IGNORECASE)
@@ -37,7 +41,13 @@ def render_ticket(ticket: Ticket) -> str:
         f"message_count: {len(ticket.messages)}",
         "",
     ]
-    for index, message in enumerate(sorted(ticket.messages, key=lambda m: m.sent_at), start=1):
+    ordered = sorted(ticket.messages, key=lambda m: m.sent_at)
+    shown = _newest_within_budget(ordered, MAX_PROMPT_TEXT_CHARS)
+    omitted = len(ordered) - len(shown)
+    if omitted:
+        lines.append(f"({omitted} older message(s) omitted to keep the prompt within its length budget)")
+        lines.append("")
+    for index, message in enumerate(shown, start=omitted + 1):
         lines.append(
             f"[{index}] {message.author} · {_fmt(message.sent_at)} "
             f"({_elapsed(latest - message.sent_at)} before latest message)"
@@ -46,6 +56,21 @@ def render_ticket(ticket: Ticket) -> str:
         lines.append("")
     lines.append("</ticket>")
     return "\n".join(lines)
+
+
+def _newest_within_budget(ordered: list[TicketMessage], budget: int) -> list[TicketMessage]:
+    """Return the newest messages whose text fits in `budget` characters, oldest first.
+
+    The newest message is always kept, even if it exceeds the budget on its own.
+    """
+    kept: list[TicketMessage] = []
+    used = 0
+    for message in reversed(ordered):
+        if kept and used + len(message.text) > budget:
+            break
+        kept.append(message)
+        used += len(message.text)
+    return list(reversed(kept))
 
 
 def _untrusted(text: str) -> str:

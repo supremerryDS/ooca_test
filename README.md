@@ -171,7 +171,11 @@ pytest
 ```
 
 1. The ticket is rendered into a `<ticket>` block (marked as untrusted customer data) with
-   relative timestamps, so the model sees how long the customer has been waiting.
+   relative timestamps, so the model sees how long the customer has been waiting. Tag-like
+   text from the customer cannot close that block, and long threads keep their newest messages
+   within a fixed length budget to bound cost. Clearly abnormal input (empty IDs, a message over
+   10,000 characters, more than 100 messages) is rejected with HTTP 422, and timestamps without
+   a timezone are read as UTC.
 2. The model must answer with tool calls. It looks up the customer, then billing, service status
    and the knowledge base as needed.
 3. It ends by calling **`submit_triage`**, whose arguments *are* the `TriageDecision` schema

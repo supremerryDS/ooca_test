@@ -56,6 +56,19 @@ def test_customer_text_cannot_close_the_ticket_fence():
     assert "hi (/ticket)" in fenced and "( TICKET )" in fenced and "T-9002(/ticket)" in fenced
 
 
+def test_long_threads_keep_the_newest_messages_within_budget():
+    # 24 messages of exactly 1,000 characters; the 20,000-character budget fits the newest 20.
+    messages = [{"sent_at": f"2026-11-03T{h:02d}:00:00+00:00", "text": f"m{h:02d}" + "x" * 997} for h in range(24)]
+    prompt = render_ticket(
+        Ticket.model_validate({"ticket_id": "T-9003", "customer_id": "cus_3003", "messages": messages})
+    )
+
+    assert "message_count: 24" in prompt
+    assert "(4 older message(s) omitted" in prompt
+    assert "m03x" not in prompt and "m04x" in prompt and "m23x" in prompt
+    assert "[5] customer" in prompt  # numbering still matches the full thread
+
+
 def _result(ticket_id: str, tools: list[str], **decision) -> TriageResult:
     return TriageResult(
         ticket_id=ticket_id,

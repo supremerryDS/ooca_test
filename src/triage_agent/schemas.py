@@ -14,7 +14,14 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# Hard limits on incoming tickets. Anything beyond these is not a normal support ticket
+# and is rejected (HTTP 422 from the API). Long but normal threads are accepted and
+# trimmed to the newest messages when the prompt is built (see prompts.render_ticket).
+MAX_ID_CHARS = 100
+MAX_MESSAGE_CHARS = 10_000
+MAX_MESSAGES = 100
 
 
 # --------------------------------------------------------------------------- #
@@ -87,9 +94,11 @@ class Team(str, Enum):
 # Input                                                                        #
 # --------------------------------------------------------------------------- #
 class TicketMessage(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     author: Literal["customer", "support"] = "customer"
     sent_at: datetime
-    text: str
+    text: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
 
     @field_validator("sent_at")
     @classmethod
@@ -100,10 +109,12 @@ class TicketMessage(BaseModel):
 
 
 class Ticket(BaseModel):
-    ticket_id: str
-    customer_id: str
-    channel: str = "unknown"
-    messages: list[TicketMessage] = Field(min_length=1)
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    ticket_id: str = Field(min_length=1, max_length=MAX_ID_CHARS)
+    customer_id: str = Field(min_length=1, max_length=MAX_ID_CHARS)
+    channel: str = Field(default="unknown", min_length=1, max_length=MAX_ID_CHARS)
+    messages: list[TicketMessage] = Field(min_length=1, max_length=MAX_MESSAGES)
 
     @property
     def latest_message_at(self) -> datetime:

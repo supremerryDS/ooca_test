@@ -65,6 +65,30 @@ def test_invalid_ticket_is_rejected(client):
     assert response.status_code == 422
 
 
+def ticket_body(**overrides) -> dict:
+    body = {
+        "ticket_id": "T-9100",
+        "customer_id": "cus_3003",
+        "messages": [{"sent_at": "2026-11-03T09:00:00+07:00", "text": "Do you have dark mode?"}],
+    }
+    return {**body, **overrides}
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        ticket_body(ticket_id=""),
+        ticket_body(customer_id="   "),
+        ticket_body(messages=[{"sent_at": "2026-11-03T09:00:00+07:00", "text": "   "}]),
+        ticket_body(messages=[{"sent_at": "2026-11-03T09:00:00+07:00", "text": "x" * 10_001}]),
+        ticket_body(messages=[{"sent_at": "2026-11-03T09:00:00+07:00", "text": "hi"}] * 101),
+    ],
+    ids=["empty-id", "blank-customer", "blank-text", "text-too-long", "too-many-messages"],
+)
+def test_abnormal_tickets_are_rejected(client, body):
+    assert client.post("/triage", json=body).status_code == 422
+
+
 def test_unknown_sample_is_404(client):
     assert client.post("/samples/T-404/triage").status_code == 404
 
