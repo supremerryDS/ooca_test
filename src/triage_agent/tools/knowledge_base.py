@@ -26,6 +26,9 @@ class SearchKnowledgeBaseArgs(BaseModel):
 class SearchKnowledgeBaseTool(Tool):
     """FAQ search for the model. Returns full article content so replies can quote it.
 
+    The category is the model's guess. If nothing matches in that category, the tool
+    searches every category instead, so a wrong guess cannot hide the right article.
+
     Args:
         knowledge_base: The articles to search.
     """
@@ -43,6 +46,12 @@ class SearchKnowledgeBaseTool(Tool):
     def run(self, args: SearchKnowledgeBaseArgs) -> dict[str, Any]:
         top_k = min(max(args.top_k or DEFAULT_TOP_K, 1), MAX_TOP_K)
         hits = self._kb.search(args.query, category=args.category, top_k=top_k)
+        note = None
+        if not hits and args.category is not None:
+            hits = self._kb.search(args.query, top_k=top_k)
+            note = f"Nothing matched category '{args.category}'; these results are from all categories."
+        if not hits:
+            note = "No relevant articles found. Do not invent an answer."
         return {
             "query": args.query,
             "results": [
@@ -55,5 +64,5 @@ class SearchKnowledgeBaseTool(Tool):
                 }
                 for hit in hits
             ],
-            "note": None if hits else "No relevant articles found. Do not invent an answer.",
+            "note": note,
         }

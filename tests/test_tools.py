@@ -50,6 +50,21 @@ def test_service_status_reveals_unpublished_asia_incident(registry):
     assert record.output["public_status_page"]["overall"] == "all_systems_operational"
 
 
+def test_kb_search_ignores_a_wrong_category_guess(registry):
+    args = {"query": "system default theme ignores macos dark appearance", "category": "technical", "top_k": None}
+    record = registry.execute("search_knowledge_base", json.dumps(args))
+    assert record.ok
+    assert record.output["results"][0]["id"] == "KB-APP-002"
+    assert "all categories" in record.output["note"]
+
+
+def test_kb_search_keeps_the_category_when_it_matches(registry):
+    args = {"query": "system default theme ignores macos dark appearance", "category": "product", "top_k": None}
+    record = registry.execute("search_knowledge_base", json.dumps(args))
+    assert {r["category"] for r in record.output["results"]} == {"product"}
+    assert record.output["note"] is None
+
+
 def test_crashing_tool_is_contained():
     class Args(BaseModel):
         pass
