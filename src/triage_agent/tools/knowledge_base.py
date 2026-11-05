@@ -19,7 +19,10 @@ class SearchKnowledgeBaseArgs(BaseModel):
         description="Search query in ENGLISH (translate non-English tickets first). Use specific "
         "keywords, e.g. 'duplicate pending charges refund' or 'system default theme macOS'."
     )
-    category: KBCategory | None = Field(description="Optional category filter. Use null to search everything.")
+    category: KBCategory | None = Field(
+        description="Optional category to prefer. If the best match is in another category, results from "
+        "all categories are returned. Use null to search everything."
+    )
     top_k: int | None = Field(description=f"Max results, 1-{MAX_TOP_K}. Use null for the default ({DEFAULT_TOP_K}).")
 
 
