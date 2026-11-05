@@ -19,6 +19,8 @@ class Settings:
         model: OpenAI model name (`OPENAI_MODEL`).
         reasoning_effort: "low", "medium" or "high" for reasoning models, or None for the
             model default (`OPENAI_REASONING_EFFORT`).
+        temperature: Sampling temperature, or None for the model default (`OPENAI_TEMPERATURE`).
+            0 makes answers more consistent between runs.
         max_steps: Maximum model turns per ticket (`TRIAGE_MAX_STEPS`).
         confidence_threshold: Below this, an automatic reply goes to human review
             (`TRIAGE_CONFIDENCE_THRESHOLD`).
@@ -28,6 +30,7 @@ class Settings:
 
     model: str = "gpt-5.4-mini"
     reasoning_effort: str | None = None
+    temperature: float | None = None
     max_steps: int = 8
     confidence_threshold: float = 0.6
     request_timeout_s: float = 60.0
@@ -42,9 +45,11 @@ class Settings:
         """
         load_dotenv()
         defaults = cls()
+        temperature = os.getenv("OPENAI_TEMPERATURE")
         return cls(
             model=os.getenv("OPENAI_MODEL", defaults.model),
             reasoning_effort=os.getenv("OPENAI_REASONING_EFFORT") or defaults.reasoning_effort,
+            temperature=float(temperature) if temperature else defaults.temperature,
             max_steps=int(os.getenv("TRIAGE_MAX_STEPS", defaults.max_steps)),
             confidence_threshold=float(os.getenv("TRIAGE_CONFIDENCE_THRESHOLD", defaults.confidence_threshold)),
             request_timeout_s=float(os.getenv("OPENAI_TIMEOUT_S", defaults.request_timeout_s)),

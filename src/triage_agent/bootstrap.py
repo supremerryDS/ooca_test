@@ -48,7 +48,7 @@ def build_llm(settings: Settings) -> LLMClient:
     """Create the OpenAI client. The API key is read from `OPENAI_API_KEY` by the SDK.
 
     Args:
-        settings: Model name, reasoning effort and request timeout.
+        settings: Model name, reasoning effort, temperature and request timeout.
 
     Returns:
         A client ready to call the configured model.
@@ -58,6 +58,7 @@ def build_llm(settings: Settings) -> LLMClient:
     return OpenAIChatClient(
         settings.model,
         reasoning_effort=settings.reasoning_effort,
+        temperature=settings.temperature,
         timeout_s=settings.request_timeout_s,
     )
 

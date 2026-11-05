@@ -24,6 +24,8 @@ class OpenAIChatClient:
         model: OpenAI model name.
         reasoning_effort: "low", "medium" or "high" for reasoning models, or None to
             leave the model default.
+        temperature: Sampling temperature, or None to leave the model default. If the
+            model rejects it, the request is sent again without it and a warning is logged.
         timeout_s: Timeout for one request, in seconds.
         max_retries: How many times the SDK retries a failed request.
         client: A ready-made OpenAI client to use instead, for example a fake one in tests.
@@ -34,12 +36,14 @@ class OpenAIChatClient:
         model: str,
         *,
         reasoning_effort: str | None = None,
+        temperature: float | None = None,
         timeout_s: float = 60.0,
         max_retries: int = 3,
         client: OpenAI | None = None,
     ) -> None:
         self.model = model
         self._reasoning_effort = reasoning_effort
+        self._temperature = temperature
         # The SDK retries 408/409/429/5xx with exponential backoff.
         self._client = client or OpenAI(timeout=timeout_s, max_retries=max_retries)
 
@@ -57,9 +61,11 @@ class OpenAIChatClient:
         }
         if self._reasoning_effort:
             request["reasoning_effort"] = self._reasoning_effort
+        if self._temperature is not None:
+            request["temperature"] = self._temperature
 
         try:
-            completion = self._client.chat.completions.create(**request)
+            completion = self._create(request)
         except openai.OpenAIError as exc:
             raise LLMError(f"OpenAI request failed: {exc}") from exc
 
@@ -78,6 +84,24 @@ class OpenAIChatClient:
             else None
         )
         return LLMResponse(content=message.content, tool_calls=tool_calls, usage=usage)
+
+    def _create(self, request: dict[str, Any]) -> Any:
+        """Send the request. If the model rejects `temperature`, stop sending it and try again.
+
+        Reasoning models only accept the default temperature. Without this, a leftover
+        `OPENAI_TEMPERATURE` would make every ticket fall back to a human.
+        """
+        try:
+            return self._client.chat.completions.create(**request)
+        except openai.BadRequestError as exc:
+            if exc.param != "temperature" or "temperature" not in request:
+                raise
+            logger.warning(
+                "%s does not accept temperature=%s; sending requests without it", self.model, request["temperature"]
+            )
+            self._temperature = None
+            del request["temperature"]
+            return self._client.chat.completions.create(**request)
 
 
 def to_openai_tool(spec: ToolSpec) -> dict[str, Any]:
