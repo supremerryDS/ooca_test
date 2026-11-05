@@ -11,6 +11,16 @@ For every ticket it:
 
 It runs as a terminal console app **and** as an HTTP API (FastAPI) with interactive docs. There is no chat UI.
 
+### Where to find each deliverable
+
+| Deliverable | Where |
+|---|---|
+| Agent that processes the sample tickets | [`src/triage_agent/agent.py`](src/triage_agent/agent.py), run with `triage-agent run` (terminal) or `triage-agent serve` (API) |
+| System prompt | [`src/triage_agent/prompts/system_prompt.md`](src/triage_agent/prompts/system_prompt.md) |
+| Tool definitions (schema + mocked implementation) | [`src/triage_agent/tools/`](src/triage_agent/tools/); print the JSON schemas with `triage-agent tools` |
+| Sample tickets and expected results | [`data/sample_tickets.json`](data/sample_tickets.json), [`evals/golden_labels.json`](evals/golden_labels.json), checked by `triage-agent eval` |
+| Write-up (1 page) | [`WRITEUP.md`](WRITEUP.md) |
+
 ---
 
 ## Quick start
@@ -129,9 +139,6 @@ Example with curl:
 curl -X POST http://127.0.0.1:8000/samples/T-1002/triage
 ```
 
-Command blocks in this README contain no inline `# comments` on purpose: zsh, the default macOS
-shell, passes them to the command as extra arguments.
-
 Configuration is read from environment variables or `.env`:
 
 | Variable | Default | Purpose |
@@ -222,6 +229,11 @@ language), `internal_note`, `confidence`.
 
 `triage-agent eval` checks these automatically (urgency, action, team and whether the right tools were called).
 
+**Measured with the real API** (`gpt-5.4-mini`, `OPENAI_TEMPERATURE=0`): 3 consecutive eval runs got
+urgency, action, team and tools right for all 3 tickets (9/9). Each ticket took 3 model turns,
+about 7 seconds and 14k tokens, roughly $0.04 for all three at list prices. Answers can change
+between runs, so this is a sample, not a guarantee.
+
 ### Mock data assumptions
 
 The customer facts come from the assignment. To make the tools meaningful, the mock data adds:
@@ -273,3 +285,18 @@ WRITEUP.md              # 1-page design write-up
 - **Another LLM provider:** implement `LLMClient.chat` in a new adapter.
 - **New API endpoint:** add a route to the `router` in `api.py`. The agent is injected with
   `Depends(get_agent)`, and tests can pass a fake agent to `create_app(agent=...)`.
+
+## What I'd do next
+
+- **Asynchronous processing:** put incoming tickets on a queue and triage them in workers, so a
+  slow model call never blocks intake and a burst of tickets during an outage is absorbed. The
+  agent keeps no state between tickets, so it can run in a worker unchanged.
+- **A larger eval set:** edge cases beyond the three samples, such as prompt injection, mixed
+  languages, an unknown customer, a safety concern and a refund already in progress, plus an
+  option to repeat the eval and report a pass rate.
+- **Responses API:** on Chat Completions, `gpt-5.4-mini` only allows tool calls with reasoning
+  off. The Responses API would allow reasoning for harder tickets.
+- **API hardening:** authentication and rate limits on the HTTP API, and no raw error text in
+  responses.
+- **Real backends:** CRM, billing, monitoring and a vector or hybrid help-center search behind the
+  existing interfaces.
