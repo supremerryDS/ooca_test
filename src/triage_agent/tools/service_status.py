@@ -13,6 +13,8 @@ Region = Literal["us-east", "eu-west", "asia-southeast"]
 
 
 class CheckServiceStatusArgs(BaseModel):
+    """Arguments for check_service_status."""
+
     region: Region = Field(
         description="Region to check. Use the customer's region from get_customer_history "
         "('asia-southeast' covers Thailand and the rest of South-East Asia)."
@@ -20,6 +22,12 @@ class CheckServiceStatusArgs(BaseModel):
 
 
 class CheckServiceStatusTool(Tool):
+    """Service health lookup: internal monitoring for a region next to the public status page.
+
+    Args:
+        monitor: Where monitoring data is read from.
+    """
+
     name = "check_service_status"
     description = (
         "Check INTERNAL monitoring for a region (error rates, latency, active incidents, including "

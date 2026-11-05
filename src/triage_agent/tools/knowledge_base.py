@@ -26,6 +26,8 @@ MAX_TOP_K = 5
 
 
 class Article(BaseModel):
+    """One help-center or internal FAQ article."""
+
     id: str
     title: str
     category: KBCategory
@@ -34,12 +36,27 @@ class Article(BaseModel):
 
 
 class SearchHit(BaseModel):
+    """An article matched by a search, with its relevance score (higher is better)."""
+
     article: Article
     score: float
 
 
 class KnowledgeBase(Protocol):
-    def search(self, query: str, *, category: str | None = None, top_k: int = DEFAULT_TOP_K) -> list[SearchHit]: ...
+    """Anything that can search articles. `BM25KnowledgeBase` today; vector search in production."""
+
+    def search(self, query: str, *, category: str | None = None, top_k: int = DEFAULT_TOP_K) -> list[SearchHit]:
+        """Find the articles most relevant to a query.
+
+        Args:
+            query: Free-text query, in English.
+            category: Only search this category, or every category if None.
+            top_k: Maximum number of results.
+
+        Returns:
+            Relevant articles, best first. Empty if nothing matches.
+        """
+        ...
 
 
 # --------------------------------------------------------------------------- #
@@ -53,11 +70,31 @@ _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
 
 def tokenize(text: str) -> list[str]:
+    """Lowercase, split into words and drop common English stopwords.
+
+    Thai has no spaces between words, so a Thai sentence becomes one token; the model is
+    told to search in English for that reason.
+
+    Args:
+        text: Text to tokenize.
+
+    Returns:
+        The remaining words, in order.
+    """
     return [tok for tok in _TOKEN_RE.findall(text.lower()) if tok not in _STOPWORDS]
 
 
 class BM25KnowledgeBase:
-    """Okapi BM25 over title + tags + content (title and tags are boosted)."""
+    """Keyword search with Okapi BM25 over title, tags and content.
+
+    Title and tags count twice, because they are written to describe the article.
+    The index is built once in the constructor; searches only score.
+
+    Args:
+        articles: Articles to index.
+        k1: How quickly repeated terms stop adding score.
+        b: How much long articles are penalized (0 = not at all, 1 = fully).
+    """
 
     def __init__(self, articles: list[Article], *, k1: float = 1.5, b: float = 0.75) -> None:
         self._articles = articles
@@ -71,9 +108,18 @@ class BM25KnowledgeBase:
 
     @classmethod
     def from_json(cls, path: Path) -> BM25KnowledgeBase:
+        """Build the index from a JSON list of articles.
+
+        Args:
+            path: The JSON file.
+
+        Returns:
+            A ready-to-search knowledge base.
+        """
         return cls([Article.model_validate(item) for item in load_json(path)])
 
     def search(self, query: str, *, category: str | None = None, top_k: int = DEFAULT_TOP_K) -> list[SearchHit]:
+        """Return up to `top_k` articles with a score above zero, best first. See `KnowledgeBase.search`."""
         query_terms = tokenize(query)
         hits = [
             SearchHit(article=article, score=round(self._score(query_terms, i), 3))
@@ -84,6 +130,7 @@ class BM25KnowledgeBase:
         return sorted(relevant, key=lambda h: h.score, reverse=True)[:top_k]
 
     def _score(self, query_terms: list[str], doc_index: int) -> float:
+        """BM25 score of one article for the query terms (0 when no term matches)."""
         terms, doc_len = self._doc_terms[doc_index], self._doc_lens[doc_index]
         score = 0.0
         for term in query_terms:
@@ -104,6 +151,8 @@ class BM25KnowledgeBase:
 # Tool                                                                         #
 # --------------------------------------------------------------------------- #
 class SearchKnowledgeBaseArgs(BaseModel):
+    """Arguments for search_knowledge_base."""
+
     query: str = Field(
         description="Search query in ENGLISH (translate non-English tickets first). Use specific "
         "keywords, e.g. 'duplicate pending charges refund' or 'system default theme macOS'."
@@ -113,6 +162,12 @@ class SearchKnowledgeBaseArgs(BaseModel):
 
 
 class SearchKnowledgeBaseTool(Tool):
+    """FAQ search for the model. Returns full article content so replies can quote it.
+
+    Args:
+        knowledge_base: The articles to search.
+    """
+
     name = "search_knowledge_base"
     description = (
         "Search the help-center / internal FAQ for articles relevant to the customer's issue. "

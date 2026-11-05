@@ -22,6 +22,12 @@ URGENCY_STYLE = {
 
 
 def render_result(console: Console, result: TriageResult) -> None:
+    """Print one triage result as a panel: decision, extracted info, reply, overrides and tool calls.
+
+    Args:
+        console: Rich console to print to.
+        result: The result to show.
+    """
     d = result.decision
     x = d.extracted
 
@@ -96,6 +102,13 @@ def _tools_table(result: TriageResult) -> Table:
 
 
 def render_scores(console: Console, scores: Sequence[TicketScore], summary: dict[str, float]) -> None:
+    """Print a pass/fail table per ticket followed by the overall accuracy figures.
+
+    Args:
+        console: Rich console to print to.
+        scores: One score per labelled ticket.
+        summary: Accuracy per field, as returned by `evaluation.summarize`.
+    """
     table = Table(title="Evaluation", title_justify="left")
     for column in ("Ticket", "Urgency", "Action", "Team", "Tools"):
         table.add_column(column)

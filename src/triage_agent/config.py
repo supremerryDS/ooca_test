@@ -13,8 +13,21 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 @dataclass(frozen=True)
 class Settings:
+    """Runtime settings. Each field can be set with the environment variable in brackets.
+
+    Attributes:
+        model: OpenAI model name (`OPENAI_MODEL`).
+        reasoning_effort: "low", "medium" or "high" for reasoning models, or None for the
+            model default (`OPENAI_REASONING_EFFORT`).
+        max_steps: Maximum model turns per ticket (`TRIAGE_MAX_STEPS`).
+        confidence_threshold: Below this, an automatic reply goes to human review
+            (`TRIAGE_CONFIDENCE_THRESHOLD`).
+        request_timeout_s: Timeout for one OpenAI request, in seconds (`OPENAI_TIMEOUT_S`).
+        data_dir: Folder with the mock data and knowledge base (`TRIAGE_DATA_DIR`).
+    """
+
     model: str = "gpt-5.4-mini"
-    reasoning_effort: str | None = None  # e.g. "low" | "medium" for reasoning models; None = model default
+    reasoning_effort: str | None = None
     max_steps: int = 8
     confidence_threshold: float = 0.6
     request_timeout_s: float = 60.0
@@ -22,6 +35,11 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
+        """Build settings from environment variables, loading a `.env` file first if there is one.
+
+        Raises:
+            ValueError: If a numeric variable such as `TRIAGE_MAX_STEPS` is not a number.
+        """
         load_dotenv()
         defaults = cls()
         return cls(

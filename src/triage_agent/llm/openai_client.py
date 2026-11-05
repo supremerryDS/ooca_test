@@ -15,7 +15,19 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIChatClient:
-    """Calls an OpenAI GPT model. The API key is read from OPENAI_API_KEY by the SDK."""
+    """`LLMClient` for OpenAI GPT models (Chat Completions with strict function calling).
+
+    The API key is read from `OPENAI_API_KEY` by the SDK. The SDK also retries
+    timeouts, rate limits and server errors with exponential backoff.
+
+    Args:
+        model: OpenAI model name.
+        reasoning_effort: "low", "medium" or "high" for reasoning models, or None to
+            leave the model default.
+        timeout_s: Timeout for one request, in seconds.
+        max_retries: How many times the SDK retries a failed request.
+        client: A ready-made OpenAI client to use instead, for example a fake one in tests.
+    """
 
     def __init__(
         self,
@@ -69,12 +81,22 @@ class OpenAIChatClient:
 
 
 def to_openai_tool(spec: ToolSpec) -> dict[str, Any]:
-    # `pydantic_function_tool` produces a strict JSON schema (all fields required,
-    # no additional properties) so the model's arguments always match our models.
+    """Convert a tool to OpenAI's function-tool format with a strict JSON schema.
+
+    Strict means every field is required and no extra fields are allowed, so the
+    model's arguments always match our Pydantic models.
+
+    Args:
+        spec: The tool to convert.
+
+    Returns:
+        The tool definition sent to OpenAI (what `triage-agent tools` prints).
+    """
     return openai.pydantic_function_tool(spec.parameters, name=spec.name, description=spec.description)
 
 
 def _to_openai_message(message: ChatMessage) -> dict[str, Any]:
+    """Convert a provider-independent message to the Chat Completions format."""
     payload: dict[str, Any] = {"role": message.role, "content": message.content}
     if message.tool_calls:
         payload["tool_calls"] = [

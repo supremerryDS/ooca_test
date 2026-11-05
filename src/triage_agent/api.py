@@ -34,7 +34,12 @@ router = APIRouter()
 # Dependencies                                                                 #
 # --------------------------------------------------------------------------- #
 class AgentProvider:
-    """Builds the agent lazily and reuses it for every request."""
+    """Builds the agent lazily and reuses it for every request.
+
+    Args:
+        settings: Settings used to build the agent on first use.
+        agent: A pre-built agent to use instead (for example a fake one in tests).
+    """
 
     def __init__(self, settings: Settings, agent: TriageAgent | None = None) -> None:
         self._settings = settings
@@ -52,10 +57,16 @@ class AgentProvider:
 
 
 def get_agent(request: Request) -> TriageAgent:
+    """FastAPI dependency: the shared agent, built on first use.
+
+    Raises:
+        HTTPException: 503 if `OPENAI_API_KEY` is not set on the server.
+    """
     return request.app.state.agent_provider()
 
 
 def get_samples(request: Request) -> dict[str, Ticket]:
+    """FastAPI dependency: the sample tickets loaded at startup, keyed by ticket ID."""
     return request.app.state.samples
 
 
@@ -86,17 +97,20 @@ _NO_KEY = {503: {"description": "OPENAI_API_KEY is not configured on the server"
 # --------------------------------------------------------------------------- #
 @router.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
+    """Redirect to the interactive docs."""
     return RedirectResponse(url="/docs")
 
 
 @router.get("/health", summary="Liveness check")
 def health(request: Request) -> dict[str, Any]:
+    """Report that the server is up, which model it uses and whether an API key is set."""
     settings: Settings = request.app.state.settings
     return {"status": "ok", "model": settings.model, "api_key_configured": bool(os.getenv("OPENAI_API_KEY"))}
 
 
 @router.get("/samples", summary="List the sample tickets")
 def list_samples(samples: SamplesDep) -> list[Ticket]:
+    """Return the sample tickets. Copy one into `POST /triage` to try your own changes."""
     return list(samples.values())
 
 
@@ -106,6 +120,7 @@ def list_samples(samples: SamplesDep) -> list[Ticket]:
     responses={404: {"description": "Unknown sample ticket ID"}, **_NO_KEY},
 )
 def triage_sample(ticket_id: str, samples: SamplesDep, agent: AgentDep) -> TriageResult:
+    """Triage one of the sample tickets (`T-1001`, `T-1002`, `T-1003`) without writing a request body."""
     ticket = samples.get(ticket_id)
     if ticket is None:
         raise HTTPException(status_code=404, detail=f"Unknown sample ticket '{ticket_id}'. Try: {', '.join(samples)}")

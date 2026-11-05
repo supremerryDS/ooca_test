@@ -34,20 +34,34 @@ from triage_agent.tools.service_status import CheckServiceStatusTool
 
 @dataclass(frozen=True)
 class PolicyContext:
-    """Facts about the run that rules may need (beyond the decision itself).
+    """Facts about the run that rules may need beyond the decision itself.
 
     Everything here comes from tool results (our own systems), never from the
     ticket text, so a customer cannot change it by what they write.
+
+    Attributes:
+        retrieved_kb_ids: IDs of knowledge-base articles that search actually returned.
+        customer_plan: Plan from `get_customer_history`, or None if it was not looked up.
+        customer_region: Region from `get_customer_history`, or None if it was not looked up.
+        degraded_regions: Regions where monitoring showed a problem, mapped to their
+            active incident IDs (the tuple may be empty).
     """
 
     retrieved_kb_ids: frozenset[str] = field(default_factory=frozenset)
     customer_plan: str | None = None
     customer_region: str | None = None
     degraded_regions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
-    """Regions where monitoring showed a problem -> active incident IDs (may be empty)."""
 
     @classmethod
     def from_tool_calls(cls, tool_calls: Iterable[ToolCallRecord]) -> PolicyContext:
+        """Collect the facts from the successful tool calls of one run.
+
+        Args:
+            tool_calls: Every tool call the agent made, successful or not.
+
+        Returns:
+            The context the rules check against.
+        """
         records = [record for record in tool_calls if record.ok]
         ids = {
             result["id"]
@@ -81,16 +95,37 @@ class PolicyContext:
 
 @dataclass(frozen=True)
 class RuleOutcome:
+    """What a rule wants to change, and why.
+
+    Attributes:
+        reason: Human-readable explanation, stored in the policy override.
+        updates: `TriageDecision` field names mapped to their new values.
+    """
+
     reason: str
     updates: dict[str, Any]
 
 
 class PolicyRule(ABC):
+    """One business rule checked against every decision.
+
+    Attributes:
+        name: Stable identifier recorded in `PolicyOverride.rule`.
+    """
+
     name: ClassVar[str]
 
     @abstractmethod
     def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
-        """Return the field updates to apply, or None if the rule does not fire."""
+        """Decide whether the rule fires for this decision.
+
+        Args:
+            decision: The decision so far (earlier rules may already have changed it).
+            ctx: Facts from the tool calls of this run.
+
+        Returns:
+            The field updates to apply, or None if the rule does not fire.
+        """
 
 
 # --------------------------------------------------------------------------- #
@@ -111,6 +146,8 @@ class SafetyConcernRule(PolicyRule):
 
 
 class CriticalNeedsHumanRule(PolicyRule):
+    """A critical ticket always gets immediate human ownership."""
+
     name = "critical_requires_human"
 
     def check(self, decision: TriageDecision, ctx: PolicyContext) -> RuleOutcome | None:
@@ -235,6 +272,12 @@ class GroundedAutoResponseRule(PolicyRule):
 
 
 class LowConfidenceReviewRule(PolicyRule):
+    """An automatic reply the model is not confident about goes to a human for review first.
+
+    Args:
+        threshold: Minimum confidence (0 to 1) for an automatic reply.
+    """
+
     name = "low_confidence_requires_review"
 
     def __init__(self, threshold: float) -> None:
@@ -250,7 +293,16 @@ class LowConfidenceReviewRule(PolicyRule):
 
 
 def default_rules(confidence_threshold: float) -> list[PolicyRule]:
-    # Order matters: safety first, then escalation rules, then auto-reply checks.
+    """Return the production rule set, in the order it must run.
+
+    Order matters: safety first, then escalation rules, then the checks on automatic replies.
+
+    Args:
+        confidence_threshold: Minimum confidence for an automatic reply.
+
+    Returns:
+        The rules, ready for `PolicyEngine`.
+    """
     return [
         SafetyConcernRule(),
         CriticalNeedsHumanRule(),
@@ -267,10 +319,25 @@ def default_rules(confidence_threshold: float) -> list[PolicyRule]:
 # Engine                                                                       #
 # --------------------------------------------------------------------------- #
 class PolicyEngine:
+    """Applies rules to a decision in order and records every change they make.
+
+    Args:
+        rules: The rules to apply, in order.
+    """
+
     def __init__(self, rules: Sequence[PolicyRule]) -> None:
         self._rules = list(rules)
 
     def apply(self, decision: TriageDecision, ctx: PolicyContext) -> tuple[TriageDecision, list[PolicyOverride]]:
+        """Run every rule in order; each rule sees the changes made by the rules before it.
+
+        Args:
+            decision: The decision proposed by the model (or the fail-safe decision).
+            ctx: Facts from the tool calls of this run.
+
+        Returns:
+            The final decision, and one override for each rule that changed something.
+        """
         overrides: list[PolicyOverride] = []
         for rule in self._rules:
             outcome = rule.check(decision, ctx)
@@ -294,6 +361,7 @@ def _at_least(current: Urgency, floor: Urgency) -> Urgency:
 
 
 def _plain(value: Any) -> Any:
+    """Turn enums (also inside lists) into their plain values so overrides serialize to JSON."""
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, list):

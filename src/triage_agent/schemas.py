@@ -28,6 +28,8 @@ MAX_MESSAGES = 100
 # Enums (shared vocabulary between the prompt, the policy layer and routing)   #
 # --------------------------------------------------------------------------- #
 class Urgency(str, Enum):
+    """How fast the ticket needs a response, from `critical` (now) to `low` (normal queue)."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -35,11 +37,13 @@ class Urgency(str, Enum):
 
     @property
     def rank(self) -> int:
-        """Higher number = more urgent. Useful for sorting queues."""
+        """Sort key: higher means more urgent (low=0 ... critical=3)."""
         return {"low": 0, "medium": 1, "high": 2, "critical": 3}[self.value]
 
 
 class IssueType(str, Enum):
+    """Kind of problem raised in the ticket."""
+
     BILLING = "billing"
     OUTAGE = "outage"
     BUG = "bug"
@@ -50,6 +54,8 @@ class IssueType(str, Enum):
 
 
 class Sentiment(str, Enum):
+    """How the customer feels in their latest messages."""
+
     VERY_NEGATIVE = "very_negative"
     NEGATIVE = "negative"
     NEUTRAL = "neutral"
@@ -57,12 +63,16 @@ class Sentiment(str, Enum):
 
 
 class SentimentTrend(str, Enum):
+    """How sentiment changed from the first message to the latest one."""
+
     IMPROVING = "improving"
     STABLE = "stable"
     WORSENING = "worsening"
 
 
 class RiskFlag(str, Enum):
+    """Business or safety risk found in the ticket. Some flags force escalation in code."""
+
     CHARGEBACK_THREAT = "chargeback_threat"
     LEGAL_THREAT = "legal_threat"
     CHURN_RISK = "churn_risk"
@@ -74,12 +84,16 @@ class RiskFlag(str, Enum):
 
 
 class Action(str, Enum):
+    """Next step for the ticket: answer automatically, queue for a team, or hand to a person now."""
+
     AUTO_RESPOND = "auto_respond"
     ROUTE_TO_SPECIALIST = "route_to_specialist"
     ESCALATE_TO_HUMAN = "escalate_to_human"
 
 
 class Team(str, Enum):
+    """Team that owns the ticket after triage."""
+
     GENERAL_SUPPORT = "general_support"
     BILLING = "billing"
     TECHNICAL_SUPPORT = "technical_support"
@@ -94,11 +108,13 @@ class Team(str, Enum):
 # Input                                                                        #
 # --------------------------------------------------------------------------- #
 class TicketMessage(BaseModel):
+    """One message in a ticket thread. Leading and trailing spaces are removed."""
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    author: Literal["customer", "support"] = "customer"
-    sent_at: datetime
-    text: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
+    author: Literal["customer", "support"] = Field(default="customer", description="Who wrote the message.")
+    sent_at: datetime = Field(description="When it was sent. A timestamp without a timezone is read as UTC.")
+    text: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS, description="Message text.")
 
     @field_validator("sent_at")
     @classmethod
@@ -109,15 +125,24 @@ class TicketMessage(BaseModel):
 
 
 class Ticket(BaseModel):
+    """A support ticket to triage: who it is from and the whole message thread."""
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    ticket_id: str = Field(min_length=1, max_length=MAX_ID_CHARS)
-    customer_id: str = Field(min_length=1, max_length=MAX_ID_CHARS)
-    channel: str = Field(default="unknown", min_length=1, max_length=MAX_ID_CHARS)
-    messages: list[TicketMessage] = Field(min_length=1, max_length=MAX_MESSAGES)
+    ticket_id: str = Field(min_length=1, max_length=MAX_ID_CHARS, description="Helpdesk ticket ID.")
+    customer_id: str = Field(
+        min_length=1, max_length=MAX_ID_CHARS, description="Customer ID, used to look up their history."
+    )
+    channel: str = Field(
+        default="unknown", min_length=1, max_length=MAX_ID_CHARS, description="Where it came in, e.g. email."
+    )
+    messages: list[TicketMessage] = Field(
+        min_length=1, max_length=MAX_MESSAGES, description="The thread, in any order (it is sorted by time)."
+    )
 
     @property
     def latest_message_at(self) -> datetime:
+        """Time of the most recent message; prompt timings are relative to it."""
         return max(m.sent_at for m in self.messages)
 
 
@@ -219,45 +244,59 @@ class TriageDecision(BaseModel):
 # Run result: decision + everything needed to audit / evaluate it              #
 # --------------------------------------------------------------------------- #
 class ToolCallRecord(BaseModel):
-    tool_name: str
-    arguments: dict[str, Any] | str
-    ok: bool
-    output: Any = None
-    error: str | None = None
-    duration_ms: float = 0.0
+    """Audit record of one tool call made during a triage run."""
+
+    tool_name: str = Field(description="Tool the model asked for.")
+    arguments: dict[str, Any] | str = Field(description="Arguments as parsed JSON, or the raw string if invalid.")
+    ok: bool = Field(description="Whether the tool ran and returned data.")
+    output: Any = Field(default=None, description="Data returned to the model when `ok` is true.")
+    error: str | None = Field(default=None, description="Error returned to the model when `ok` is false.")
+    duration_ms: float = Field(default=0.0, description="Time spent in the tool.")
 
 
 class PolicyOverride(BaseModel):
-    rule: str
-    reason: str
-    changes: dict[str, list[Any]] = Field(description="field -> [before, after]")
+    """A change one guardrail made to the model's decision."""
+
+    rule: str = Field(description="Name of the rule that fired.")
+    reason: str = Field(description="Why the rule changed the decision.")
+    changes: dict[str, list[Any]] = Field(description="Changed field mapped to [before, after].")
 
 
 class TokenUsage(BaseModel):
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
+    """Tokens used by the model, summed over every turn of a triage run."""
+
+    prompt_tokens: int = Field(default=0, description="Tokens sent to the model.")
+    completion_tokens: int = Field(default=0, description="Tokens generated by the model.")
 
     @property
     def total_tokens(self) -> int:
+        """Prompt and completion tokens together."""
         return self.prompt_tokens + self.completion_tokens
 
     def add(self, other: TokenUsage | None) -> None:
+        """Add another turn's usage in place. `None` (usage not reported) is ignored."""
         if other is not None:
             self.prompt_tokens += other.prompt_tokens
             self.completion_tokens += other.completion_tokens
 
 
 class TriageResult(BaseModel):
-    ticket_id: str
-    status: Literal["completed", "fallback"]
+    """Everything about one triage run: the decision plus what is needed to audit and evaluate it."""
+
+    ticket_id: str = Field(description="The triaged ticket.")
+    status: Literal["completed", "fallback"] = Field(
+        description="`fallback` means the agent failed and the fail-safe decision sent the ticket to a human."
+    )
     decision: TriageDecision = Field(description="Final decision, after policy guardrails.")
     llm_decision: TriageDecision | None = Field(
         default=None, description="Decision as proposed by the LLM, before guardrails."
     )
-    policy_overrides: list[PolicyOverride] = Field(default_factory=list)
-    tool_calls: list[ToolCallRecord] = Field(default_factory=list)
-    model: str
-    steps: int = 0
-    usage: TokenUsage = Field(default_factory=TokenUsage)
-    latency_ms: float = 0.0
-    error: str | None = None
+    policy_overrides: list[PolicyOverride] = Field(
+        default_factory=list, description="Each change a guardrail made, in the order the rules ran."
+    )
+    tool_calls: list[ToolCallRecord] = Field(default_factory=list, description="Every tool call, in order.")
+    model: str = Field(description="Model that produced the decision.")
+    steps: int = Field(default=0, description="Number of model turns used.")
+    usage: TokenUsage = Field(default_factory=TokenUsage, description="Tokens used over all turns.")
+    latency_ms: float = Field(default=0.0, description="Wall-clock time for the whole run.")
+    error: str | None = Field(default=None, description="What went wrong when `status` is `fallback`.")

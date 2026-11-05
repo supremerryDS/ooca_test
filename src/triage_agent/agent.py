@@ -56,6 +56,24 @@ class _Run:
 
 
 class TriageAgent:
+    """Triages support tickets with an LLM, lookup tools and deterministic guardrails.
+
+    One instance is reusable and safe to share: all per-ticket state lives in a
+    private run object, so the CLI, the API and a queue worker can call `triage`
+    on the same agent.
+
+    Args:
+        llm: Client used to talk to the model.
+        tools: Lookup tools the model may call.
+        policy: Guardrails applied to every decision after the model answers.
+        system_prompt: Instructions for the model.
+        max_steps: Maximum number of model turns per ticket. On the last turn the
+            model is forced to submit a decision. Must be at least 2.
+
+    Raises:
+        ValueError: If `max_steps` is lower than 2.
+    """
+
     def __init__(
         self,
         llm: LLMClient,
@@ -75,6 +93,19 @@ class TriageAgent:
         self._tool_specs = [*tools.specs, SUBMIT_TOOL]
 
     def triage(self, ticket: Ticket) -> TriageResult:
+        """Triage one ticket end to end.
+
+        Runs the tool-calling loop, then applies the policy guardrails. Never raises:
+        if the model, a tool or anything else fails, the result holds a fail-safe
+        decision that sends the ticket to a human.
+
+        Args:
+            ticket: The ticket to triage.
+
+        Returns:
+            The final decision after guardrails, the model's original decision,
+            any policy overrides, every tool call, token usage and latency.
+        """
         started = time.perf_counter()
         run = _Run()
         llm_decision: TriageDecision | None = None
@@ -112,6 +143,7 @@ class TriageAgent:
     # Loop                                                                 #
     # ------------------------------------------------------------------ #
     def _run_loop(self, run: _Run) -> TriageDecision:
+        """Ask the model for tool calls until it submits a valid decision or runs out of steps."""
         for step in range(1, self._max_steps + 1):
             run.steps = step
             is_last_step = step == self._max_steps
@@ -136,6 +168,7 @@ class TriageAgent:
         raise AgentError(f"No valid triage decision after {self._max_steps} steps")
 
     def _handle_tool_calls(self, calls: list[ToolCall], run: _Run) -> TriageDecision | None:
+        """Run lookups, answer every call, and return the decision if one was accepted."""
         lookups = [c for c in calls if c.name != SUBMIT_TOOL.name]
         submissions = [c for c in calls if c.name == SUBMIT_TOOL.name]
 
@@ -159,6 +192,7 @@ class TriageAgent:
 
     @staticmethod
     def _parse_decision(call: ToolCall) -> tuple[TriageDecision | None, str]:
+        """Validate a `submit_triage` call; return the decision (or None) and the reply for the model."""
         try:
             decision = TriageDecision.model_validate_json(call.arguments)
         except ValidationError as exc:

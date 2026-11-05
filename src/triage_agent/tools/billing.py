@@ -11,10 +11,18 @@ from triage_agent.tools.base import Tool, ToolError
 
 
 class GetBillingTransactionsArgs(BaseModel):
+    """Arguments for get_billing_transactions."""
+
     customer_id: str = Field(description="Customer ID from the ticket header.")
 
 
 class GetBillingTransactionsTool(Tool):
+    """Read-only billing lookup: plan, subscription status, payment attempts and refunds.
+
+    Args:
+        billing: Where billing accounts are read from.
+    """
+
     name = "get_billing_transactions"
     description = (
         "Read-only view of a customer's billing account: current plan, subscription status, "

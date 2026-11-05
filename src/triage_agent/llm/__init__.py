@@ -1,3 +1,5 @@
+"""Provider-independent LLM interface and the OpenAI adapter."""
+
 from triage_agent.llm.base import (
     ChatMessage,
     LLMClient,

@@ -13,23 +13,41 @@ from typing import Any, Protocol
 
 
 class CustomerDirectory(Protocol):
-    def get_customer(self, customer_id: str) -> dict[str, Any] | None: ...
+    """Source of customer profiles (a CRM in production)."""
+
+    def get_customer(self, customer_id: str) -> dict[str, Any] | None:
+        """Return the customer's profile and support history, or None if the ID is unknown."""
+        ...
 
 
 class BillingSystem(Protocol):
-    def get_billing_account(self, customer_id: str) -> dict[str, Any] | None: ...
+    """Source of billing data (a payment provider in production)."""
+
+    def get_billing_account(self, customer_id: str) -> dict[str, Any] | None:
+        """Return plan, subscription status and payment attempts, or None if the ID is unknown."""
+        ...
 
 
 class StatusMonitor(Protocol):
-    def get_public_status(self) -> dict[str, Any]: ...
+    """Source of service health (internal monitoring and the public status page)."""
 
-    def get_region_status(self, region: str) -> dict[str, Any] | None: ...
+    def get_public_status(self) -> dict[str, Any]:
+        """Return what the public status page currently says."""
+        ...
+
+    def get_region_status(self, region: str) -> dict[str, Any] | None:
+        """Return internal monitoring for a region, or None if the region is unknown."""
+        ...
 
 
 class MockBackend:
-    """Reads mocked customer, billing and monitoring data from JSON files in `data_dir`.
+    """Reads mocked customer, billing and monitoring data from JSON files.
 
-    Implements CustomerDirectory, BillingSystem and StatusMonitor.
+    Implements `CustomerDirectory`, `BillingSystem` and `StatusMonitor`. Each file is
+    read on first use and then kept in memory.
+
+    Args:
+        data_dir: Folder with `customers.json`, `billing.json` and `service_status.json`.
     """
 
     def __init__(self, data_dir: Path) -> None:
@@ -64,5 +82,6 @@ class MockBackend:
 
 
 def load_json(path: Path) -> Any:
+    """Read a UTF-8 JSON file."""
     with path.open(encoding="utf-8") as fh:
         return json.load(fh)

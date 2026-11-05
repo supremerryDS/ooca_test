@@ -11,10 +11,18 @@ from triage_agent.tools.base import Tool, ToolError
 
 
 class GetCustomerHistoryArgs(BaseModel):
+    """Arguments for get_customer_history."""
+
     customer_id: str = Field(description="Customer ID from the ticket header, e.g. 'cus_1001'.")
 
 
 class GetCustomerHistoryTool(Tool):
+    """Customer lookup: plan, tenure, region, devices, SLA and previous tickets.
+
+    Args:
+        directory: Where customer profiles are read from.
+    """
+
     name = "get_customer_history"
     description = (
         "Look up a customer's profile and support history: plan, tenure, seats, region, "

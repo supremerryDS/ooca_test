@@ -28,13 +28,26 @@ class ToolSpec:
 
 @dataclass(frozen=True)
 class ToolCall:
+    """One tool call requested by the model.
+
+    Attributes:
+        id: Provider-assigned ID; the tool result must be sent back with the same ID.
+        name: Name of the tool to run.
+        arguments: Raw JSON string, validated later by the tool's Pydantic model.
+    """
+
     id: str
     name: str
-    arguments: str  # raw JSON string, validated later by the tool's Pydantic model
+    arguments: str
 
 
 @dataclass(frozen=True)
 class ChatMessage:
+    """One message in the conversation with the model, independent of any provider.
+
+    Build messages with the `system`, `user`, `assistant` and `tool_result` constructors.
+    """
+
     role: Role
     content: str | None = None
     tool_calls: tuple[ToolCall, ...] = ()
@@ -59,6 +72,14 @@ class ChatMessage:
 
 @dataclass
 class LLMResponse:
+    """What the model returned for one completion.
+
+    Attributes:
+        content: Free text, if any (normally empty because the model must call tools).
+        tool_calls: Tool calls to run, in the order the model asked for them.
+        usage: Tokens used by this completion, when the provider reports it.
+    """
+
     content: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
     usage: TokenUsage | None = None
@@ -69,6 +90,12 @@ class LLMError(RuntimeError):
 
 
 class LLMClient(Protocol):
+    """Anything that can run one tool-calling completion. Implemented by `OpenAIChatClient`.
+
+    Attributes:
+        model: Name of the model, recorded in every triage result.
+    """
+
     model: str
 
     def chat(
@@ -77,9 +104,18 @@ class LLMClient(Protocol):
         tools: list[ToolSpec],
         force_tool: str | None = None,
     ) -> LLMResponse:
-        """Run one completion.
+        """Run one completion in which the model must answer with tool calls.
 
-        The model must answer with tool calls. If `force_tool` is given, it must call
-        exactly that tool (used to force a final answer on the last step).
+        Args:
+            messages: The conversation so far, oldest first.
+            tools: Tools the model may call.
+            force_tool: If given, the model must call exactly this tool (used to force a
+                final answer on the last step).
+
+        Returns:
+            The model's tool calls, any free text and token usage.
+
+        Raises:
+            LLMError: If the provider fails after its own retries.
         """
         ...

@@ -1,3 +1,5 @@
+"""Lookup tools the model can call, and the registry that runs them."""
+
 from triage_agent.tools.base import Tool, ToolError, ToolRegistry, tool_output_for_llm
 from triage_agent.tools.billing import GetBillingTransactionsTool
 from triage_agent.tools.customer_history import GetCustomerHistoryTool

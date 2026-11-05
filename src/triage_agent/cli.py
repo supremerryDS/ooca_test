@@ -33,6 +33,14 @@ console = Console()
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the `triage-agent` command line.
+
+    Args:
+        argv: Arguments without the program name. Defaults to the real command line.
+
+    Returns:
+        Exit code: 0 on success, 1 if a ticket fell back to a human, 2 if the API key is missing.
+    """
     args = _parser().parse_args(argv)
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,
@@ -48,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
 # Commands                                                                     #
 # --------------------------------------------------------------------------- #
 def cmd_run(args: argparse.Namespace, settings: Settings) -> int:
+    """`triage-agent run`: triage tickets and print each result."""
     if not _has_api_key():
         return 2
     tickets = _select(load_tickets(args.tickets), args.ticket_id)
@@ -57,6 +66,7 @@ def cmd_run(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def cmd_eval(args: argparse.Namespace, settings: Settings) -> int:
+    """`triage-agent eval`: triage the labelled tickets and print accuracy per field."""
     if not _has_api_key():
         return 2
     labels = load_labels(args.labels)
@@ -69,6 +79,7 @@ def cmd_eval(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def cmd_tools(args: argparse.Namespace, settings: Settings) -> int:
+    """`triage-agent tools`: print the tool definitions exactly as they are sent to OpenAI."""
     from triage_agent.agent import SUBMIT_TOOL
     from triage_agent.llm.openai_client import to_openai_tool
 
@@ -78,6 +89,7 @@ def cmd_tools(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def cmd_serve(args: argparse.Namespace, settings: Settings) -> int:
+    """`triage-agent serve`: run the HTTP API until stopped with Ctrl+C."""
     import uvicorn
 
     from triage_agent.api import create_app
@@ -93,6 +105,7 @@ def cmd_serve(args: argparse.Namespace, settings: Settings) -> int:
 # Helpers                                                                      #
 # --------------------------------------------------------------------------- #
 def _triage_all(tickets: list[Ticket], settings: Settings) -> list[TriageResult]:
+    """Triage tickets one by one, printing each result as soon as it is ready."""
     agent = build_agent(settings)
     results = []
     for ticket in tickets:
@@ -104,6 +117,7 @@ def _triage_all(tickets: list[Ticket], settings: Settings) -> list[TriageResult]
 
 
 def _select(tickets: list[Ticket], ids: list[str] | None) -> list[Ticket]:
+    """Keep only the tickets with the given IDs (all tickets if no IDs are given)."""
     if not ids:
         return tickets
     selected = [t for t in tickets if t.ticket_id in ids]
@@ -125,6 +139,7 @@ def _maybe_write(results: list[TriageResult], output: Path | None) -> None:
 
 
 def _has_api_key() -> bool:
+    """Return whether `OPENAI_API_KEY` is set, printing a hint when it is not."""
     if os.getenv("OPENAI_API_KEY"):
         return True
     console.print("[red]OPENAI_API_KEY is not set.[/] Copy .env.example to .env and add your key.")

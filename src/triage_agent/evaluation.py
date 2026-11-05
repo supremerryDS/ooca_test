@@ -17,16 +17,38 @@ from triage_agent.schemas import Action, Team, TriageResult, Urgency
 
 
 class GoldenLabel(BaseModel):
+    """Hand-written expectations for one ticket.
+
+    Attributes:
+        ticket_id: The ticket these expectations belong to.
+        notes: Why these answers are expected (for humans only).
+        acceptable_urgency: Every urgency that counts as correct.
+        acceptable_actions: Every action that counts as correct.
+        acceptable_teams: Every team that counts as correct, or None if any team (or none) is fine.
+        expected_tools: Tools the agent should have called successfully.
+    """
+
     ticket_id: str
     notes: str = ""
     acceptable_urgency: list[Urgency]
     acceptable_actions: list[Action]
-    acceptable_teams: list[Team] | None = None  # None = any team (or none) is fine
+    acceptable_teams: list[Team] | None = None
     expected_tools: list[str] = []
 
 
 @dataclass(frozen=True)
 class TicketScore:
+    """Pass/fail for each scored field of one ticket.
+
+    Attributes:
+        ticket_id: The scored ticket.
+        urgency_ok: Urgency is one of the acceptable values.
+        action_ok: Action is one of the acceptable values.
+        team_ok: Team is acceptable (always true when the label accepts any team).
+        tools_ok: Every expected tool was called successfully.
+        missing_tools: Expected tools that were not called.
+    """
+
     ticket_id: str
     urgency_ok: bool
     action_ok: bool
@@ -36,16 +58,34 @@ class TicketScore:
 
     @property
     def all_ok(self) -> bool:
+        """Whether every field passed."""
         return self.urgency_ok and self.action_ok and self.team_ok and self.tools_ok
 
 
 def load_labels(path: Path) -> dict[str, GoldenLabel]:
+    """Read golden labels from a JSON list.
+
+    Args:
+        path: The JSON file.
+
+    Returns:
+        Labels keyed by ticket ID.
+    """
     with path.open(encoding="utf-8") as fh:
         labels = [GoldenLabel.model_validate(item) for item in json.load(fh)]
     return {label.ticket_id: label for label in labels}
 
 
 def score_result(result: TriageResult, label: GoldenLabel) -> TicketScore:
+    """Compare the final decision for one ticket with its label.
+
+    Args:
+        result: What the agent produced (the decision after guardrails is scored).
+        label: The expected answers.
+
+    Returns:
+        Pass/fail per field, plus any expected tools that were not called.
+    """
     decision = result.decision
     called = {record.tool_name for record in result.tool_calls if record.ok}
     missing = tuple(tool for tool in label.expected_tools if tool not in called)
@@ -60,6 +100,15 @@ def score_result(result: TriageResult, label: GoldenLabel) -> TicketScore:
 
 
 def summarize(scores: Sequence[TicketScore]) -> dict[str, float]:
+    """Turn per-ticket scores into accuracy figures between 0 and 1.
+
+    Args:
+        scores: One score per ticket.
+
+    Returns:
+        Accuracy for urgency, action, team and tool usage, plus the share of tickets that
+        were fully correct. Empty if there are no scores.
+    """
     if not scores:
         return {}
     n = len(scores)

@@ -38,4 +38,15 @@ line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+select = ["E", "F", "I", "B", "UP", "D"]
+ignore = [
+    "D102",  # public methods: interface methods are documented on the base class or protocol
+    "D105",  # magic methods
+    "D107",  # __init__: constructor arguments are documented on the class
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
